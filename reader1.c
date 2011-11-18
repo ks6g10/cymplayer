@@ -22,17 +22,16 @@
  *
  * Dump information about the current node
  */
-typedef
-struct entrystr {
+typedef struct entrystr {
   char *title;
   char *author;
   char *duration;
   char *id;
-  char *upploaded;
+  char *uploaded;
 } entry;
 
 void
-processNode(xmlTextReaderPtr reader, xmlChar *parent, entry argentry) {
+processNode(xmlTextReaderPtr reader, xmlChar *parent, entry *argEntry) {
   const xmlChar *name, *value;
   short type, depth;
   
@@ -49,19 +48,29 @@ processNode(xmlTextReaderPtr reader, xmlChar *parent, entry argentry) {
     ,xmlTextReaderGetAttributeNo(reader,0));
   */
   if(depth == 4 && type == 3) { /* if the value is a child node */
-    if(strncmp(parent,"yt:uploaded",5) == 0) /* if the parent name was yt:uploaded */
-      printf("%s\n",value);
-    else if(strncmp(parent,"media:credit",10) == 0) 
-      printf("%s\n",value);
-    else if(strncmp(parent,"media:title",12) == 0) 
-      printf("%s\n",value);
-    else if(strncmp(parent,"yt:videoid",5) == 0) 
-      printf("%s\n",value);
+    if(strncmp(parent,"yt:uploaded",5) == 0) { /* if the parent name was yt:uploaded */
+      argEntry->uploaded =(char*) value;/* printf("%s\n",value); */
+      printf("%s\n",argEntry->uploaded);
+    }
+    else if(strncmp(parent,"media:credit",10) == 0) {
+      argEntry->author =(char*) value;
+      printf("%s\n",argEntry->author);
+    }
+    else if(strncmp(parent,"media:title",12) == 0) {
+      argEntry->title =(char*) value;
+      printf("%s\n",argEntry->title);
+    }
+    else if(strncmp(parent,"yt:videoid",5) == 0)  {
+      argEntry->id =(char*) value;
+      printf("%s\n",argEntry->id);
+    }
   } 
   else if(depth == 3 && type == 1) {   /* if the value is not a child but a attribute */
     
-    if(strncmp(name,"yt:duration",8) == 0)     /* gives you the duration */
-      printf("%s\n",xmlTextReaderGetAttributeNo(reader,0));
+    if(strncmp(name,"yt:duration",8) == 0) {     /* gives you the duration */
+      argEntry->duration =(char*) xmlTextReaderGetAttributeNo(reader,0);
+      printf("%s\n", argEntry->duration);
+    }
     
   } /* end if */
   
@@ -76,7 +85,8 @@ processNode(xmlTextReaderPtr reader, xmlChar *parent, entry argentry) {
 static void
 streamFile(const char *filename) {
   xmlTextReaderPtr reader;
-  int ret, cnt;
+  int ret;
+  short cnt = 0;
   xmlChar *cname,*parent;
   unsigned short inside = 0;
   entry entrya[25];
@@ -90,14 +100,13 @@ streamFile(const char *filename) {
       cname = xmlTextReaderConstName(reader); /* gets the name of the current node */
      
       if(strncmp(cname,"media:group",8) == 0) { /* if the node is of media:group, toggle inside */
+	cnt += inside; /* increment the count with inside, i.e. increments when you leave the group  */
 	inside ^= 1;
 	printf("\n");
-	if(inside == 0)
-	  cnt++;
       }
       
       if(inside == 1)
-	processNode(reader, parent,entrya[cnt]);
+	processNode(reader, parent, &(entrya[cnt]));
       parent = xmlTextReaderConstName(reader);
       ret = xmlTextReaderRead(reader);
       
