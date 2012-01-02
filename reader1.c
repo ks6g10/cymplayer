@@ -29,6 +29,7 @@ typedef struct entrystr {
 
 //void printEntryArray(entry *argEntryA,short argCount);
 char * format_duration(char argdur[]);
+
 int 
 correctNode(const xmlChar *parent) 
 {
@@ -185,11 +186,13 @@ printEntryArray(entry *argRoot)
  * Parse and print information about an XML file.
  */
 void
-streamFile(const char *filename) {	
+streamFile(const char *filename) 
+{	
 	xmlTextReaderPtr reader;
 	reader = xmlReaderForFile(filename, NULL, 0);
 	// if there is nothing to read
-	if (reader == NULL) {
+	if (reader == NULL) 
+	{
 		fprintf(stderr, "Unable to open %s\n", filename);
 		return;
 	}
@@ -218,9 +221,11 @@ streamFile(const char *filename) {
 		
 		if(inside == 1)
 			processNode(reader, parent, next);
+
 		parent = xmlTextReaderConstName(reader);
 		ret = xmlTextReaderRead(reader);
 	}
+
 	if (ret != 0) {
 		fprintf(stderr, "%s : failed to parse\n", filename);
 	}
@@ -260,3 +265,4 @@ int main(void) {
 	exit(1);
 }
 #endif
+
