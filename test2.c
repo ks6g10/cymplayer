@@ -23,13 +23,14 @@
 #include<string.h>
 #include<math.h>
 #include<stdint.h>
+#include<time.h>
 
 #define ENTRYWIDTH 122
 #define COLOR8BIT  255
 #define COLORBREAK 125
 #define STARTWIDTH 1024
 #define STARTHEIGHT 600
-#define ENTRYHEIGHT 108
+#define ENTRYHEIGHT 122
 
 typedef struct entry_w_struct 
 {
@@ -58,12 +59,12 @@ unsigned int hashString(char * argstring)
 	uint32_t tmp = 0;
 	for(i = 0;i<n;i++)
 	{
-//		hashsum = 31 * hashsum + argstring[i]; 
+		//hashsum = 31 * hashsum + argstring[i]; 
 		tmp = argstring[i]*pow(31,n-i);
 		hashsum += tmp;
 //		printf("charint %i sum %i\n",argstring[i],tmp);
 	}
-	printf("hash %u author %s lenght %i",hashsum,argstring,n);
+	//	printf("hash %u author %s lenght %i",hashsum,argstring,n);
 	return hashsum;
 }
 
@@ -83,7 +84,7 @@ GdkRGBA * getBGColor(char * argstring) {
 	hash >>=8;
 	b = hash % 255;
 	sprintf(tmpcolorarg,"rgb(%u,%u,%u)\n",r,g,b);
-	printf("%s",tmpcolorarg);
+	//	printf("%s",tmpcolorarg);
 	GdkRGBA * retColor = (GdkRGBA *) calloc(1,sizeof(GdkRGBA));
 	gdk_rgba_parse(retColor,tmpcolorarg);
 	return retColor;
@@ -164,51 +165,71 @@ GtkWidget * createwidget(entry * argEntry)
 	return top;	
 }
 
-void window_resize(GtkWindow *window, GdkEvent *event, gpointer data)
+
+void arrange_window(entry * argentry, GtkWidget * layout,uint16_t width,
+		    void (*gtk_put_move)(GtkLayout *,GtkWidget *, int,int)) 
 {
-	uint16_t height;
-	uint16_t width;
-	GtkWidget * layout;
-	GtkWidget * currentwidget;
-	entry * currententry;
-	uint8_t entryprow;
-	int16_t colspace;
+	entry * currententry = argentry;
 	uint8_t erowcount = 0;
-	uint16_t x = 0;
-	uint16_t y = 0;
-	GList * windowlist;
-	windowlist = gtk_container_get_children(GTK_CONTAINER(window));
-	layout = (GtkWidget *) windowlist->data;
-	currententry = (entry *) data;
-	height = event->configure.height;
-	width = event->configure.width;
+	int x = 0;
+	int y = 0;
+	int16_t colspace = 0;
+	uint8_t entryprow;
+
 	entryprow = width/ENTRYWIDTH;
-	if(entryprow == 0)
+	if(entryprow < 2) {
 		entryprow = 1;
-	colspace = (width -(entryprow)*ENTRYWIDTH)/(entryprow-1);
-	if(colspace < 0)
 		colspace = 0;
-	printf("entry per row %i height %i width %i space %i\n",entryprow,height,width,colspace);
+	} 
+	else {
+		colspace = (width -(entryprow)*ENTRYWIDTH)/(entryprow-1);
+		if(colspace < 0)
+			colspace = 0;
+	}
+	
 	while(currententry->next !=NULL)
 	{
 		gtk_widget_hide(currententry->top);
 		if(erowcount == entryprow-1)
-			gtk_layout_move(GTK_LAYOUT(layout),currententry->top,width-ENTRYWIDTH,y);
+			(*gtk_put_move)(GTK_LAYOUT(layout),currententry->top,width-ENTRYWIDTH,y);
 		else
-			gtk_layout_move(GTK_LAYOUT(layout),currententry->top,x,y);
+			(*gtk_put_move)(GTK_LAYOUT(layout),currententry->top,x,y);
 		gtk_widget_show(currententry->top);
 		currententry =(entry *) currententry->next;
 
-		x += ENTRYWIDTH+colspace;
+		x += ENTRYWIDTH + colspace;
 		erowcount++;
-		if(erowcount >= entryprow) 
+		if(erowcount >= entryprow)
 		{
 			erowcount = 0;
 			x = 0;
-			y += ENTRYHEIGHT + 7; 
+			y += ENTRYHEIGHT + 7;
 		}
 	}
+
+
+}
+
+
+void window_resize(GtkWindow *window, GdkEvent *event, gpointer data)
+{
+	uint16_t width;
+	uint16_t height;
+	GtkWidget * layout;
+	GtkWidget * currentwidget;
+	entry * currententry;
+	GList * windowlist;
+	windowlist = gtk_container_get_children(GTK_CONTAINER(window));
+	layout = (GtkWidget *) windowlist->data;
+	currententry = (entry *) data;
+	width = event->configure.width;
+	height = event->configure.height;
 	
+	arrange_window(currententry,layout,width,&gtk_layout_move);
+
+	gtk_container_resize_children(GTK_CONTAINER(layout));
+	GtkRequisition size = {width,height};
+	gtk_widget_size_request(layout,&size);
 }
 
 
@@ -217,39 +238,17 @@ GtkWidget * getEntryGrid(entry * rootentry, GtkWidget * window) {
 	GtkWidget * layout;
 	GtkWidget * currentwidget;
 	entry * currententry;
-	uint16_t entrycount;
-	uint8_t entryprow;
-	int16_t colspace;
-	uint8_t erowcount = 0;
-	uint16_t x = 0;
-	uint16_t y = 0;
 	layout = gtk_layout_new(NULL,NULL);
-	entrycount = rootentry->count;
-	entryprow = STARTWIDTH/ENTRYWIDTH;
-	if(entryprow == 0)
-		entryprow = 1;
-	colspace = (STARTWIDTH-entryprow*ENTRYWIDTH)/(entryprow-1);
-//	if(colspace < 0)
-		colspace = 0;
 	currententry = rootentry;
 
 	while(currententry->next !=NULL)
 	{
 		currentwidget = createwidget(currententry);
-		gtk_layout_put(GTK_LAYOUT(layout),currentwidget,x,y);
 		currententry->top = currentwidget;
 		currententry =(entry *) currententry->next;
-
-		x += ENTRYWIDTH+colspace;
-		erowcount++;
-		if(erowcount >= entryprow) 
-		{
-			erowcount = 0;
-			x = 0;
-			y += ENTRYWIDTH + colspace; 
-		}
 	}
-//	gtk_window_get_size(GTK_WINDOW(window),&width,&height);
+
+	arrange_window(rootentry,layout,STARTWIDTH,&gtk_layout_put);
 
 	
 	return layout;
@@ -257,6 +256,7 @@ GtkWidget * getEntryGrid(entry * rootentry, GtkWidget * window) {
 
 int main(int argc, char *argv[]) 
 {
+	clock_t start = clock();
 	GtkWidget * window;
 	GtkWidget * layout;
 	entry * rootentry = (entry *) NULL;
@@ -265,37 +265,7 @@ int main(int argc, char *argv[])
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	gtk_window_set_default_size(GTK_WINDOW(window), STARTWIDTH,STARTHEIGHT);
 	gtk_widget_override_background_color(window,GTK_STATE_FLAG_NORMAL,&BLACK);
-	
-/* grid =(GtkWidget *) gtk_grid_new(); */
-	
-	/* for(i=0; i < 8; ++i) */
-	/* { */
-	/* 	gtk_grid_insert_column(GTK_GRID(grid),0); */
-	/* } */
-	/* for(i=0; i < 4; ++i) */
-	/* { */
-	/* 	gtk_grid_insert_row(GTK_GRID(grid),0); */
-	/* } */
-	/* //gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE); */
-	/* gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE); */
-	/* while(currententry->next != NULL) */
-	/* { */
-	/* 	tmpinsert = createEntryWidget(currententry); */
-	/* 	gtk_grid_attach(GTK_GRID(grid),tmpinsert->top,x,y,1,1); */
-	/* 	x++; */
-	/* 	if(x == 8) */
-	/* 		y++; */
-	/* 	x %= 8; */
-	/* 	y %= 4; */
-	/* 	currententry =(entry *) currententry->next; */
-	/* } */
-	
-//	
-	
-
-//	gtk_widget_show_all(grid);
 	gtk_widget_show_all(window);
-//	gtk_grid_set_column_spacing(GTK_GRID(grid),4);
 //if kill
 	g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 	gtk_widget_add_events(GTK_WIDGET(window), GDK_CONFIGURE);
@@ -305,6 +275,7 @@ int main(int argc, char *argv[])
 	gtk_container_add(GTK_CONTAINER(window), layout);
 	gtk_widget_show_all(layout);
 	gtk_widget_show_all(window);
+	printf("Time elapsed: %f\n", ((double)clock() - start) / CLOCKS_PER_SEC);
 	gtk_main();
 	return 0;
 
