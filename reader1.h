@@ -16,13 +16,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+#include <gtk/gtk.h>
+
 typedef struct entrystruct {
 	char *title;
 	char *author;
 	char *duration;
 	char *id;
 	char *uploaded;
-	struct entrystr *next;
+	int count;
+	GtkWidget * top;
+	struct entrystruct *next;
 } entry;
 
 entry * getRootentry();

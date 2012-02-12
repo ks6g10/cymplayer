@@ -9,12 +9,10 @@ LIBS= `pkg-config --libs gtk+-3.0` `xml2-config --libs`
 all:run
 
 reader1.o : reader1.c
-	$(CC) $(CFLAGS)  $(XFLAGS) -c reader1.c
+	$(CC) $(CFLAGS)  $(XFLAGS) $(GFLAGS) -g  -c reader1.c
 
 test2.o: test2.c 
-	$(CC) $(CFLAGS)  $(GFLAGS) -c test2.c
+	$(CC) $(CFLAGS)   $(GFLAGS) -g -c test2.c
 
 run: test2.o reader1.o
-	$(CC) $(LIBS) -o run reader1.o test2.o
-
-
+	$(CC) $(LIBS) -DGTK_MULTIHEAD_SAFE=1 -g  -o run reader1.o test2.o
