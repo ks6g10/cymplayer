@@ -98,7 +98,7 @@ processNode(xmlTextReaderPtr reader,char *parent, entry *argEntry)
 	{ /* if the value is a child node */
 		short ret = nodetype(parent);
 		
-		if(ret == 0) //if no match
+		if(__builtin_expect(ret == 0,0)) //if no match
 			return;
 
 		const char *value;
@@ -107,24 +107,26 @@ processNode(xmlTextReaderPtr reader,char *parent, entry *argEntry)
 		value = (const char *) xmlTextReaderConstValue(reader);
 		ptr = (char *)  malloc( (strlen(value) + 1) * (sizeof(char)) ); //alloc space for string
 		strcpy(ptr,value);
-
-		switch(ret)
-		{
-		case 1: 
-			argEntry->uploaded = ptr;
-			break;
-		case 2: 
-			argEntry->author = ptr;
-			break;
-		case 3:
-			argEntry->title = ptr;
-			break;
-		case 4:
-			argEntry->id = ptr;
-			break;
-		default:
-			break;
-		}
+		
+		argEntry->fields[ret] = ptr;
+		
+		/* switch(ret) */
+		/* { */
+		/* case 1:  */
+		/* 	argEntry->uploaded = ptr; */
+		/* 	break; */
+		/* case 2:  */
+		/* 	argEntry->author = ptr; */
+		/* 	break; */
+		/* case 3: */
+		/* 	argEntry->title = ptr; */
+		/* 	break; */
+		/* case 4: */
+		/* 	argEntry->id = ptr; */
+		/* 	break; */
+		/* default: */
+		/* 	break; */
+		/* } */
 		
 	} 
 	else if(depth == 3 && type == 1) 
@@ -132,11 +134,11 @@ processNode(xmlTextReaderPtr reader,char *parent, entry *argEntry)
 		char *name;
 		name =(char *) xmlTextReaderConstName(reader);
 
-		if(strcmp(name,"yt:duration") == 0) 
+		if(__builtin_expect(strcmp(name,"yt:duration") == 0,0)) 
 		{     /* gives you the duration */
 			char *duration;
 			duration =(char *) xmlTextReaderGetAttributeNo(reader,0);
-			argEntry->duration = format_duration(duration);
+			argEntry->fields[DURATION] = format_duration(duration);
 			free(duration);
 
 		}
@@ -196,9 +198,9 @@ printEntryArray(entry *argRoot)
 	const entry *tmp = argRoot;
 	while(tmp->next != NULL)
 	{
-		printf("%s -> ", tmp->author);
-		printf("%s", tmp->title);
-		printf(" %s\n", tmp->duration);
+		printf("%s -> ", tmp->fields[AUTHOR]);
+		printf("%s", tmp->fields[TITLE]);
+		printf(" %s\n", tmp->fields[DURATION]);
 		tmp =(entry *) tmp->next;
 	}
 }
@@ -211,11 +213,11 @@ freeEntryArray(entry *argRoot)
 	entry *prevtmp = NULL;
 	while(tmp != NULL)
 	{
-		free(tmp->author);
-		free(tmp->title);
-		free(tmp->duration);
-		free(tmp->id);
-		free(tmp->uploaded);
+		free(tmp->fields[AUTHOR]);
+		free(tmp->fields[UPLOADED]);
+		free(tmp->fields[TITLE]);
+		free(tmp->fields[ID]);
+		free(tmp->fields[DURATION]);
 		prevtmp = tmp;
 		tmp =(entry *) tmp->next;
 		free(prevtmp);
@@ -249,21 +251,20 @@ streamFile(const char *filename)
 	unsigned char inside = 0;
 	ret = xmlTextReaderRead(reader);	
 
-	while (ret == 1) 
+	while (__builtin_expect(ret == 1,1)) 
 	{ /* while there still is something to read */
 		cname = (char *)  xmlTextReaderConstName(reader); /* gets the name of the current node */
 		
 		if(strcmp(cname,"media:group") == 0 && !(inside ^=1)) 
 		{ /* if the node is of media:group, toggle inside */
 			current->next = (entry *) calloc(1,sizeof(entry)); //set new pointer to next entry
-			if(current->next == NULL)
+			if(__builtin_expect(current->next == NULL,0))
 			{
 				fprintf(stderr, "Malloc failed in reader1.c:streamFile:~244\n");
 				return (entry *) NULL;
 			}
-			root->count +=1;
+
 			current =(entry *) current->next; //change entry to new one.
-//			current->next = (entry *) NULL; //set the new entry to point to root
 
 		}
 		else if(inside == 1) 
@@ -275,7 +276,7 @@ streamFile(const char *filename)
 		
 	}
 
-	if (ret != 0) 
+	if (__builtin_expect(ret,0)) 
 	{
 		fprintf(stderr, "%s : failed to parse\n", filename);
 	}
@@ -293,6 +294,7 @@ entry * getRootentry() {
 	 * between the version it was compiled for and the actual shared
 	 * library used.
 	 */
+
 	LIBXML_TEST_VERSION
 		rootentry = streamFile("./newsub");
 

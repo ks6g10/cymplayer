@@ -18,13 +18,23 @@
  */
 #include <gtk/gtk.h>
 
+#define MAXFIELDS 6
+
+enum arrayindex {
+	UPLOADED=1,
+	AUTHOR=2,
+	TITLE =3,
+	ID=4,
+	DURATION=5
+};
+
 typedef struct entrystruct {
-	char *title;
-	char *author;
-	char *duration;
-	char *id;
-	char *uploaded;
-	int count;
+	/* char *title; */
+	/* char *author; */
+	/* char *duration; */
+	/* char *id; */
+	/* char *uploaded; */
+	char *fields[MAXFIELDS];
 	GtkWidget * top;
 	struct entrystruct *next;
 } entry;
