@@ -1,52 +1,58 @@
 #include<stdio.h>
 #include<dirent.h>
 #include<sys/stat.h>
+#include<string.h>
+#include<stdlib.h>
 
 int main() 
 {
-	const char SETTINGS_PATH[] = "./.cymplayer/settings";
-	const char DIR_PATH[] = "./.cymplayer";
+	const char * SETTINGS_PATH = "./.cymplayer/settings";
+	const char * DIR_PATH = "./.cymplayer";
 	const char READ = 'r';
 	const char WRITE = 'w';
 	const char USERNAME[] = "Username=";
-	unsigned int *  charcnt; 
-	*charcnt = 200;
-	char * path = &DIR_PATH;
-	char * input = (char *) (malloc(sizeof(char)*charcnt));
+	size_t buffer = 200; 
+	size_t * buffptr = &buffer;
+
+	char * input = (char *) (malloc((sizeof(char))*buffer));
 	char ** inputptr = &input;
 	FILE *settings;
 	DIR * settings_dir;
 	int ret = 0;
-	settings_dir = opendir(path);
+	settings_dir = opendir(DIR_PATH);
 //	settings = fopen(path,"r");
 
 	if(settings_dir == NULL)
 	{
 		printf("Directory %s does not exist\n",DIR_PATH);
-		ret = mkdir(path,S_IRWXU);
+		ret = mkdir(DIR_PATH,S_IRWXU);
 		if(ret == -1) {
 			printf("Could not create directory, quits");
-			exit(2);	
+			exit(EXIT_FAILURE);	
 		}
 	}
 	closedir(settings_dir);
 		
-	path = &SETTINGS_PATH;
-	settings = fopen(path,&READ);
+
+	settings = fopen(SETTINGS_PATH,&READ);
 	if(settings == NULL)
 	{
 		printf("File %s does not exist\n",SETTINGS_PATH);
-		settings = fopen(path,&WRITE);
+		settings = fopen(SETTINGS_PATH,&WRITE);
 		if(settings == NULL) {
 			printf("Could not write file %s\n",SETTINGS_PATH);
-			exit(2);
+			exit(EXIT_FAILURE);
 		}
-		fprintf(settings,"%s\n",USERNAME);
+		fprintf(settings,"%s%s\n",USERNAME,"pojk3n");
 
 	}
 	else
 	{
-		getline(inputptr,charcnt,settings);
+		getline(inputptr,buffptr,settings);
+		if(strncmp(*inputptr,USERNAME,strlen(USERNAME)) == 0) {
+			printf("Your username %s",(*(inputptr[strlen(USERNAME)])));
+
+		}
 	}
 
 	fclose(settings);
