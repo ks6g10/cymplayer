@@ -23,6 +23,14 @@
 #include<string.h>
 #include<math.h>
 #include<stdint.h>
+#include<time.h>
+
+#define ENTRYWIDTH 122
+#define COLOR8BIT  255
+#define COLORBREAK 125
+#define STARTWIDTH 1024
+#define STARTHEIGHT 600
+#define ENTRYHEIGHT 122
 
 typedef struct entry_w_struct 
 {
@@ -39,60 +47,59 @@ typedef struct entry_w_struct
 const GdkRGBA BLACK = {(gdouble) 0,(gdouble) 0,(gdouble) 0,(gdouble) 1};
 const GdkRGBA WHITE = {(gdouble) 1,(gdouble) 1,(gdouble) 1,(gdouble) 1};
 const GdkRGBA * RGBARRAY[2] = {&BLACK,&WHITE};// = {{BLACK}{WHITE}};
-const uint8_t COLORBREAK = 125;
-const uint8_t COLOR8BIT = 255;
-const uint8_t ENTRYWIDTH = 122;
+//const uint8_t COLORBREAK = 125;
+//const uint8_t COLOR8BIT = 255;
+//const uint8_t ENTRYWIDTH = 122;
 
-unsigned int hashString(char * argstring)
+uint32_t hashString(char * argstring)
 {
-	int n = strlen(argstring);
-	int i = 0;
+	int16_t n = strlen(argstring);
+	int16_t i = 0;
 	uint32_t hashsum = 0;
 	uint32_t tmp = 0;
 	for(i = 0;i<n;i++)
 	{
-//		hashsum = 31 * hashsum + argstring[i]; 
+		//hashsum = 31 * hashsum + argstring[i]; 
 		tmp = argstring[i]*pow(31,n-i);
 		hashsum += tmp;
-//		printf("charint %i sum %i\n",argstring[i],tmp);
 	}
-	printf("hash %u author %s lenght %i",hashsum,argstring,n);
 	return hashsum;
 }
 
 GdkRGBA * getBGColor(char * argstring) {
-	unsigned int hash = hashString(argstring);
-	uint8_t r;
-	uint8_t g;
-	uint8_t b;
+	uint32_t hash = hashString(argstring);
+	uint8_t r = 0;
+	uint8_t g = 0;
+	uint8_t b = 0;
 	//Argument for gdk_rgba_parse, 'rgb(255,255,255)' 16 chars max + 1 null term = 17.
-	char tmpcolorarg[17];// = (char *) malloc(17*sizeof(char));
-	if(hash<0)
-		hash ^=1;
+	// 17 caused bug with gtk, increase to 18 solved it, dont know why.
+	char tmpcolorarg[18];// = (char *) malloc(17*sizeof(char));
+	//	if(hash<0)
+	//	hash ^=1;
 	r = hash % 255;
 	hash >>=8;
 	g = hash % 255;
 	hash >>=8;
 	b = hash % 255;
 	sprintf(tmpcolorarg,"rgb(%u,%u,%u)\n",r,g,b);
-//	printf("%s",tmpcolorarg);
-	GdkRGBA * retColor = (GdkRGBA *) malloc(sizeof(GdkRGBA));
+	//	printf("%s",tmpcolorarg);
+	GdkRGBA * retColor = (GdkRGBA *) calloc(1,sizeof(GdkRGBA));
 	gdk_rgba_parse(retColor,tmpcolorarg);
 	return retColor;
 }
 
-int adjustTitleColor(GdkRGBA * argColor) {
+uint16_t adjustTitleColor(GdkRGBA * argColor) {
 	
 	uint8_t r = argColor->red*COLOR8BIT;
 	uint8_t g = argColor->green*COLOR8BIT;
 	uint8_t b = argColor->blue*COLOR8BIT;
-	uint8_t colorBrightness = (((r*299) + (g*587) + (b*114)) / 1000);
-	printf(" brightness %i \n",colorBrightness);
+	uint16_t colorBrightness = (((r*299) + (g*587) + (b*114)) / 1000);
+//	printf(" brightness %i \n",colorBrightness);
 	return (colorBrightness < COLORBREAK);	
 }
 
 
-entrywidget * createEntryWidget(entry * argEntry) 
+GtkWidget * createwidget(entry * argEntry) 
 {
 	GtkWidget * top;
 	GtkWidget * box;
@@ -102,18 +109,17 @@ entrywidget * createEntryWidget(entry * argEntry)
 	GtkWidget * thumboverlay; /*GTKoverlay to overlay author and duration over the image thumb.*/
 	GtkWidget * thumb;
 	entrywidget * eWidget; 
-	GdkRGBA * bgcolor;
-	uint8_t colorret;
+	GdkRGBA * bgcolor = NULL;
+	uint8_t colorret =0;
 	if(argEntry == (entry *) NULL)
-		return (entrywidget *) NULL;
+		return (GtkWidget *) NULL;
 	//construction
 	top = gtk_event_box_new();
 	box = gtk_box_new(GTK_ORIENTATION_VERTICAL,0);
 	thumb = gtk_image_new_from_file("./default.jpg");
-	eWidget = (entrywidget *) calloc(1, sizeof(entrywidget));
-	title    = gtk_label_new(argEntry->title);
-	author   = gtk_label_new(argEntry->author);
-	duration = gtk_label_new(argEntry->duration);
+	title    = gtk_label_new(argEntry->fields[TITLE]);
+	author   = gtk_label_new(argEntry->fields[AUTHOR]);
+	duration = gtk_label_new(argEntry->fields[DURATION]);
 	thumboverlay = gtk_overlay_new();
 	eWidget->thisstruct = argEntry;	
 
@@ -121,22 +127,12 @@ entrywidget * createEntryWidget(entry * argEntry)
 	gtk_label_set_ellipsize(GTK_LABEL(author),PANGO_ELLIPSIZE_END);
 
 	gtk_widget_set_size_request(thumboverlay,120,20);
-	gtk_widget_set_size_request(top,ENTRYWIDTH,108);
+	gtk_widget_set_size_request(top,ENTRYWIDTH,ENTRYHEIGHT);
 	gtk_widget_set_valign(author,GTK_ALIGN_START);
 	gtk_widget_set_halign(author,GTK_ALIGN_START);
 	gtk_widget_set_valign(duration,GTK_ALIGN_END);
 	gtk_widget_set_halign(duration,GTK_ALIGN_END);
 	
-	//Color
-//	gtk_widget_override_color(top,GTK_STATE_FLAG_NORMAL,&RED);
-	bgcolor = getBGColor(argEntry->author);
-	gtk_widget_override_background_color(top,GTK_STATE_FLAG_NORMAL,bgcolor);
-	colorret = adjustTitleColor(bgcolor);
-	gtk_widget_override_color(title,GTK_STATE_FLAG_NORMAL,RGBARRAY[colorret]);
-
-	gtk_widget_override_background_color(thumboverlay,GTK_STATE_FLAG_NORMAL,&BLACK);
-	gtk_widget_override_color(author,GTK_STATE_FLAG_NORMAL,&WHITE);
-	gtk_widget_override_color(duration,GTK_STATE_FLAG_NORMAL,&WHITE);
 
 	//Adding widgets
 	gtk_container_add(GTK_CONTAINER(thumboverlay), thumb);
@@ -148,81 +144,139 @@ entrywidget * createEntryWidget(entry * argEntry)
 	gtk_box_set_homogeneous(GTK_BOX(box),FALSE);
 	gtk_box_pack_start(GTK_BOX(box),title,FALSE,FALSE,0);
 	gtk_box_pack_start(GTK_BOX(box),thumboverlay,FALSE,FALSE,0);
-	eWidget->top = top;
+
+
+
+	//Color
+	bgcolor = getBGColor(argEntry->fields[AUTHOR]);
+	colorret = adjustTitleColor(bgcolor);
+	gtk_widget_override_color(title,GTK_STATE_FLAG_NORMAL,RGBARRAY[colorret]);
+	gtk_widget_override_background_color(top,GTK_STATE_FLAG_NORMAL,bgcolor);
+
+	gtk_widget_override_background_color(thumboverlay,GTK_STATE_FLAG_NORMAL,&BLACK);
+	gtk_widget_override_color(author,GTK_STATE_FLAG_NORMAL,&WHITE);
+	gtk_widget_override_color(duration,GTK_STATE_FLAG_NORMAL,&WHITE);
+		
 	gtk_widget_show_all(top);
-	return eWidget;	
+	return top;	
 }
+
+
+void arrange_window(entry * argentry, GtkWidget * layout,uint16_t width,
+		    void (*gtk_put_move)(GtkLayout *,GtkWidget *, int,int)) 
+{
+	entry * currententry = argentry;
+	uint8_t erowcount = 0;
+	uint16_t x = 0;
+	uint16_t y = 0;
+	int16_t colspace = 0;
+	uint8_t entryprow;
+	uint8_t count = 0;
+
+	entryprow = width/ENTRYWIDTH;
+	if(__builtin_expect(entryprow < 2,0)) {
+		entryprow = 1;
+		colspace = 0;
+	} 
+	//Enclosed in the else in order to prevent from dividing with 0 if entryprow = 1;
+	else {
+		colspace = (width -(entryprow)*ENTRYWIDTH)/(entryprow-1);
+		if(colspace < 0)
+			colspace = 0;
+	}
+	colspace += ENTRYWIDTH; 
+
+	
+	while(__builtin_expect(currententry->next !=NULL,1))
+	{
+		gtk_widget_hide(currententry->top);
+		//		if(erowcount == entryprow-1)
+		//	(*gtk_put_move)(GTK_LAYOUT(layout),currententry->top,width-ENTRYWIDTH,y);
+		//else
+		(*gtk_put_move)(GTK_LAYOUT(layout),currententry->top,x,y);
+		gtk_widget_show(currententry->top);
+		currententry =(entry *) currententry->next;
+
+		x += colspace;
+		erowcount++;
+		if(__builtin_expect(erowcount >= entryprow,0))
+		{
+			erowcount = 0;
+			x = 0;
+			y += ENTRYHEIGHT + 7;
+		}
+	}
+
+
+}
+
 
 void window_resize(GtkWindow *window, GdkEvent *event, gpointer data)
 {
-	uint16_t height;
+
 	uint16_t width;
-	uint16_t rspace;
-	int16_t cspace;
-	GtkWidget * grid;
-	grid = (GtkWidget *) data;
-	height = event->configure.height;
+	uint16_t height;
+	GtkWidget * layout;
+	GtkWidget * currentwidget;
+	entry * currententry;
+	GList * windowlist;
+	windowlist = gtk_container_get_children(GTK_CONTAINER(window));
+	layout = (GtkWidget *) windowlist->data;
+	currententry = (entry *) data;
 	width = event->configure.width;
-	cspace = (width - 8*ENTRYWIDTH)/7;
-	if(cspace < 0)
-		cspace = 0;
-	gtk_grid_set_column_spacing(GTK_GRID(grid),cspace);
-	printf("spacing %u width %u\n",cspace,width);
+	height = event->configure.height;
+	
+	arrange_window(currententry,layout,width,&gtk_layout_move);
+
+	gtk_container_resize_children(GTK_CONTAINER(layout));
+	GtkRequisition size = {width,height};
+	gtk_widget_size_request(layout,&size);
+
 }
 
 
-int main(int argc, char *argv[]) 
-{
-	GtkWidget * window;
-	GtkWidget * grid;
-	entry * rootentry = (entry *) NULL;
+GtkWidget * getEntryGrid(entry * rootentry, GtkWidget * window) {
+	
+	GtkWidget * layout;
+	GtkWidget * currentwidget;
 	entry * currententry;
-	entrywidget * tmpinsert;
-	uint8_t i;
-	uint8_t x = 0;
-	uint8_t y = 0;
-	rootentry = getRootentry();
+	layout = gtk_layout_new(NULL,NULL);
 	currententry = rootentry;
-	gtk_init(&argc,&argv);
 
-	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	gtk_window_set_default_size(GTK_WINDOW(window), 1024,600);
-	gtk_widget_override_background_color(window,GTK_STATE_FLAG_NORMAL,&BLACK);
-	grid =(GtkWidget *) gtk_grid_new();
-
-	for(i=0; i < 8; ++i)
+	while(__builtin_expect(currententry->next !=NULL,1))
 	{
-		gtk_grid_insert_column(GTK_GRID(grid),0);
-	}
-	for(i=0; i < 4; ++i)
-	{
-		gtk_grid_insert_row(GTK_GRID(grid),0);
-	}
-	//gtk_grid_set_row_homogeneous(GTK_GRID(grid),TRUE);
-	gtk_grid_set_column_homogeneous(GTK_GRID(grid),TRUE);
-	while(currententry->next != NULL)
-	{
-		tmpinsert = createEntryWidget(currententry);
-		gtk_grid_attach(GTK_GRID(grid),tmpinsert->top,x,y,1,1);
-		x++;
-		if(x == 8)
-			y++;
-		x %= 8;
-		y %= 4;
+		currentwidget = createwidget(currententry);
+		currententry->top = currentwidget;
 		currententry =(entry *) currententry->next;
 	}
-	
-	gtk_container_add(GTK_CONTAINER(window), grid);
-	
+	arrange_window(rootentry,layout,STARTWIDTH,&gtk_layout_put);
 
-	gtk_widget_show_all(grid);
+	return layout;
+}
+
+int main(int argc, char *argv[]) 
+{
+	clock_t start = clock();
+	GtkWidget * window;
+	GtkWidget * layout;
+	entry * rootentry = (entry *) NULL;
+	rootentry = getRootentry();
+	gtk_init(&argc,&argv);
+	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	gtk_window_set_default_size(GTK_WINDOW(window), STARTWIDTH,STARTHEIGHT);
+	gtk_widget_override_background_color(window,GTK_STATE_FLAG_NORMAL,&BLACK);
 	gtk_widget_show_all(window);
-	gtk_grid_set_column_spacing(GTK_GRID(grid),4);
 //if kill
 	g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 	gtk_widget_add_events(GTK_WIDGET(window), GDK_CONFIGURE);
-	g_signal_connect(window, "configure-event",G_CALLBACK(window_resize),grid);
-	gtk_main();
+	g_signal_connect(window, "configure-event",G_CALLBACK(window_resize),rootentry);
+	
+	layout = getEntryGrid(rootentry,window);
+	gtk_container_add(GTK_CONTAINER(window), layout);
+	//	gtk_widget_show_all(layout);
+	gtk_widget_show_all(window);
+	printf("Time elapsed: %f\n", ((double)clock() - start) / CLOCKS_PER_SEC);
+	//	gtk_main();
 	return 0;
 
 }

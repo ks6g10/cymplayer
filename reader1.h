@@ -16,13 +16,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+#include <gtk/gtk.h>
+
+#define MAXFIELDS 6
+
+enum arrayindex {
+	UPLOADED=1,
+	AUTHOR=2,
+	TITLE =3,
+	ID=4,
+	DURATION=5
+};
+
 typedef struct entrystruct {
-	char *title;
-	char *author;
-	char *duration;
-	char *id;
-	char *uploaded;
-	struct entrystr *next;
+	/* char *title; */
+	/* char *author; */
+	/* char *duration; */
+	/* char *id; */
+	/* char *uploaded; */
+	char *fields[MAXFIELDS];
+	GtkWidget * top;
+	struct entrystruct *next;
 } entry;
 
 entry * getRootentry();
