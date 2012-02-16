@@ -29,11 +29,6 @@ enum arrayindex {
 };
 
 typedef struct entrystruct {
-	/* char *title; */
-	/* char *author; */
-	/* char *duration; */
-	/* char *id; */
-	/* char *uploaded; */
 	char *fields[MAXFIELDS];
 	GtkWidget * top;
 	struct entrystruct *next;
