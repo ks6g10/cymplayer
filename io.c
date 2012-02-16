@@ -4,13 +4,15 @@
 #include<string.h>
 #include<stdlib.h>
 
+#define UNLENGTH (strlen(USERNAME))
+
 int main() 
 {
 	const char * SETTINGS_PATH = "./.cymplayer/settings";
 	const char * DIR_PATH = "./.cymplayer";
 	const char READ = 'r';
 	const char WRITE = 'w';
-	const char USERNAME[] = "Username=";
+	const char * USERNAME = "Username=";
 	size_t buffer = 200; 
 	size_t * buffptr = &buffer;
 
@@ -48,9 +50,13 @@ int main()
 	}
 	else
 	{
-		getline(inputptr,buffptr,settings);
-		if(strncmp(*inputptr,USERNAME,strlen(USERNAME)) == 0) {
-			printf("Your username %s",(*(inputptr[strlen(USERNAME)])));
+		int i =0;
+		int ret;
+		ret = getline(inputptr,buffptr,settings);
+		if(strncmp(*inputptr,USERNAME,UNLENGTH) == 0) {
+			printf("Your username = ");
+			for(i = UNLENGTH;i < ret; i++)
+				printf("%c",*(&(*inputptr)[i]));
 
 		}
 	}
