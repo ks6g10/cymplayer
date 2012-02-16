@@ -61,22 +61,32 @@ char * format_duration(char * argdur);
 int 
 nodetype(char *parent) 
 {
-	if(strcmp(parent,"yt:uploaded") == 0) 
-	{ /* if the parent name was yt:uploaded */
-		return 1;
-	}
-	else if(strcmp(parent,"media:credit") == 0) 
+	const char * CHARY = (const char *) "y";
+	const char * CHARM = (const char *) "m";
+	if(strncmp(parent,CHARY,1)==0) 
 	{
-		return 2;
-	}
-	else if(strcmp(parent,"media:title") == 0) 
-	{
-		return 3;
-	}
-	else if(strcmp(parent,"yt:videoid") == 0)  
-	{
+		if(strcmp(parent,"yt:uploaded") == 0) 
+		{ /* if the parent name was yt:uploaded */
+			return 1;
+		}
+		else if(strcmp(parent,"yt:videoid") == 0)  
+		{
 		return 4;
+		}
+	} 
+	else if(strncmp(parent,CHARM,1)==0) 
+	{
+	
+		if(strcmp(parent,"media:credit") == 0) 
+		{
+			return 2;
+		}
+		else if(strcmp(parent,"media:title") == 0) 
+		{
+			return 3;
+		}
 	}
+
 	return 0;
 }
 
