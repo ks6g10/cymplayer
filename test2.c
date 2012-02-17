@@ -20,10 +20,12 @@
 #include<gtk/gtk.h>
 #include"reader1.h"
 #include<stdio.h>
+#include<stdlib.h>
 #include<string.h>
 #include<math.h>
 #include<stdint.h>
 #include<time.h>
+
 
 #define ENTRYWIDTH 122
 #define COLOR8BIT  255
@@ -119,6 +121,7 @@ GtkWidget * createwidget(entry * argEntry)
 	thumb = gtk_image_new_from_file("./default.jpg");
 	title    = gtk_label_new(argEntry->fields[TITLE]);
 	author   = gtk_label_new(argEntry->fields[AUTHOR]);
+	printf("%s\n",argEntry->fields[AUTHOR]);
 	duration = gtk_label_new(argEntry->fields[DURATION]);
 	thumboverlay = gtk_overlay_new();
 	eWidget->thisstruct = argEntry;	
@@ -152,6 +155,7 @@ GtkWidget * createwidget(entry * argEntry)
 	colorret = adjustTitleColor(bgcolor);
 	gtk_widget_override_color(title,GTK_STATE_FLAG_NORMAL,RGBARRAY[colorret]);
 	gtk_widget_override_background_color(top,GTK_STATE_FLAG_NORMAL,bgcolor);
+	free(bgcolor);
 
 	gtk_widget_override_background_color(thumboverlay,GTK_STATE_FLAG_NORMAL,&BLACK);
 	gtk_widget_override_color(author,GTK_STATE_FLAG_NORMAL,&WHITE);
@@ -254,6 +258,13 @@ GtkWidget * getEntryGrid(entry * rootentry, GtkWidget * window) {
 	return layout;
 }
 
+void destroy(GtkWindow *window, GdkEvent *event, gpointer data) {
+	entry * rootentry = (entry *) data;
+//	freeEntryArray(rootentry);
+	gtk_widget_destroy(GTK_WIDGET(window));
+	gtk_main_quit();
+}
+
 int main(int argc, char *argv[]) 
 {
 	clock_t start = clock();
@@ -266,8 +277,9 @@ int main(int argc, char *argv[])
 	gtk_window_set_default_size(GTK_WINDOW(window), STARTWIDTH,STARTHEIGHT);
 	gtk_widget_override_background_color(window,GTK_STATE_FLAG_NORMAL,&BLACK);
 	gtk_widget_show_all(window);
+
 //if kill
-	g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+	g_signal_connect(window, "destroy", G_CALLBACK(destroy), NULL);
 	gtk_widget_add_events(GTK_WIDGET(window), GDK_CONFIGURE);
 	g_signal_connect(window, "configure-event",G_CALLBACK(window_resize),rootentry);
 	
@@ -276,7 +288,7 @@ int main(int argc, char *argv[])
 	//	gtk_widget_show_all(layout);
 	gtk_widget_show_all(window);
 	printf("Time elapsed: %f\n", ((double)clock() - start) / CLOCKS_PER_SEC);
-	//	gtk_main();
+	gtk_main();
 	return 0;
 
 }

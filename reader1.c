@@ -40,16 +40,6 @@
 #ifdef LIBXML_READER_ENABLED
 
 
-/*typedef struct entrystr {
-	char *title;
-	char *author;
-	char *duration;
-	char *id;
-	char *uploaded;
-	struct entrystr *next;
-	} entry; */
-
-//void printEntryArray(entry *argEntryA,short argCount);
 char * format_duration(char * argdur);
 
 
@@ -67,11 +57,11 @@ nodetype(char *parent)
 	{
 		if(strcmp(parent,"yt:uploaded") == 0) 
 		{ /* if the parent name was yt:uploaded */
-			return 1;
+			return UPLOADED;
 		}
 		else if(strcmp(parent,"yt:videoid") == 0)  
 		{
-		return 4;
+		return ID;
 		}
 	} 
 	else if(strncmp(parent,CHARM,1)==0) 
@@ -79,11 +69,11 @@ nodetype(char *parent)
 	
 		if(strcmp(parent,"media:credit") == 0) 
 		{
-			return 2;
+			return AUTHOR;
 		}
 		else if(strcmp(parent,"media:title") == 0) 
 		{
-			return 3;
+			return TITLE;
 		}
 	}
 
@@ -110,33 +100,17 @@ processNode(xmlTextReaderPtr reader,char *parent, entry *argEntry)
 		
 		if(__builtin_expect(ret == 0,0)) //if no match
 			return;
-
+		//If there is more than one credit field, only take the first.
+		if(argEntry->fields[ret] !=NULL) {
+			return;
+		}
 		const char *value;
 		char* ptr;
 
 		value = (const char *) xmlTextReaderConstValue(reader);
 		ptr = (char *)  malloc( (strlen(value) + 1) * (sizeof(char)) ); //alloc space for string
 		strcpy(ptr,value);
-		
-		argEntry->fields[ret] = ptr;
-		
-		/* switch(ret) */
-		/* { */
-		/* case 1:  */
-		/* 	argEntry->uploaded = ptr; */
-		/* 	break; */
-		/* case 2:  */
-		/* 	argEntry->author = ptr; */
-		/* 	break; */
-		/* case 3: */
-		/* 	argEntry->title = ptr; */
-		/* 	break; */
-		/* case 4: */
-		/* 	argEntry->id = ptr; */
-		/* 	break; */
-		/* default: */
-		/* 	break; */
-		/* } */
+		argEntry->fields[ret] = ptr;		
 		
 	} 
 	else if(depth == 3 && type == 1) 
@@ -248,7 +222,7 @@ streamFile(const char *filename)
 	xmlTextReaderPtr reader;
 	reader = xmlReaderForFile(filename, NULL, 0);
 	// if there is nothing to read
-	if (reader == NULL) 
+	if (__builtin_expect(reader == NULL,0)) 
 	{
 		fprintf(stderr, "Unable to open %s\n", filename);
 		return (entry *) NULL;
@@ -282,8 +256,8 @@ streamFile(const char *filename)
 			processNode(reader, parent, current);
 			parent = cname;//(char *)  xmlTextReaderConstName(reader);
 		}
-		ret = xmlTextReaderRead(reader);
-		
+
+		ret = xmlTextReaderRead(reader);		
 	}
 
 	if (__builtin_expect(ret,0)) 
@@ -306,7 +280,7 @@ entry * getRootentry() {
 	 */
 
 	LIBXML_TEST_VERSION
-		rootentry = streamFile("./newsub");
+		rootentry = streamFile("./newsub.xml");
 
 	if(rootentry == NULL)
 	{
