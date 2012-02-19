@@ -1,6 +1,6 @@
 #include<stdio.h>
 #include<curl/curl.h>
-
+#include<string.h>
 
 
 
@@ -17,15 +17,53 @@ void main() {
 	if(curl)
 	{
 		file = fopen(Videofile,"w");
-
-
-
+		curl_easy_setopt(curl,CURLOPT_URL,YOUTUBE);
+		curl_easy_setopt(curl,CURLOPT_WRITEDATA,file);
+		retur = curl_easy_perform(curl);
+		fclose(file);
+		curl_easy_cleanup(curl);
 	}
 	
-	
+	file = fopen(Videofile,"r");
+	if(file == NULL)
+		return;
+	size_t buff = 300;
+	size_t * buffptr = &buff;
+	char * line = malloc(sizeof(char)*buff);
+	char ** lineptr = &line;
+	int i = 0;
+	while(getline(lineptr,buffptr,file) > 0)
+	{
+		/* if(strncmp(*lineptr,"\n",1) == 0) */
+		/*    continue; */
+		/* if(strncmp(*lineptr,"<",1) == 0) */
+		/*    continue; */
+		/* if(strncmp(*lineptr,"'",1) == 0) */
+		/*    continue; */
+		/* if(strncmp(*lineptr,"        i",9) != 0) */
+		/*    continue; */
+		i++;
 
+		char * src = strstr(*lineptr,"url_encoded_fmt_stream_map");
+		if(src == NULL)
+			continue;
+		src = strstr(src,"itag");
+//		tmp = strstr(tmp,"itag");
+		 char * next = src;
 
-
+		while((next = strstr(src,"itag")) != NULL) 
+		{
+			while(src != next)
+				putchar(*src++);
+			putchar('\n');
+			putchar('\n');
+			src += 4;
+		}
+//		   if(strcmp(*lineptr,"</html>"))
+//		      return;
+	       
+	}
+	printf("\n count %d\n",i);
 }
 
 
