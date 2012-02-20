@@ -1,100 +1,182 @@
+/*
+ * io2.c
+ *
+ * Copyright (C) 2012 - Kim Svensson
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
+#include<stdint.h>
 
-char *replace_str(char *str, char *orig, char *rep);
+void replace_str(char *str, char *orig, char *rep,int singel);
 
-void main()
+/*str_replace derived from jmucchiello and Samuel_xL at stackoverflow
+ * http://stackoverflow.com/questions/779875/what-is-the-function-to-replace-string-in-c
+ * Modified 2012-Feb
+ */
+// You must free the result if result is non-NULL.
+void str_replace(char *orig, char *rep, char *with) {
+    char *result; // the return string
+    char *ins;    // the next insert point
+    char *tmp;    // varies
+    char *start;
+    size_t len_rep;  // length of rep
+    size_t len_with; // length of with
+    size_t len_front; // distance between rep and end of last rep
+    uint8_t count;    // number of replacements
+//    printf("NULL%d\n",(orig==NULL));
+    if (!orig)
+	    return;
+    if (!rep || !(len_rep = strlen(rep)))
+        return;
+    if (!(ins = strstr(orig, rep))) 
+        return;
+    if (!with)
+        with = "";
+    len_with = strlen(with);
+    start=orig;
+
+    for (count = 0; tmp = strstr(ins, rep); ++count) {
+        ins = tmp + len_rep;
+    }
+
+    // first time through the loop, all the variable are set correctly
+    // from here on,
+    //    tmp points to the end of the result string
+    //    ins points to the next occurrence of rep in orig
+    //    orig points to the remainder of orig after "end of rep"
+    tmp = result = realloc(tmp,strlen(orig) + (len_with - len_rep) * count + 1);
+
+    if (!result)
+	    return;
+
+    while (count--) {
+        ins = strstr(orig, rep);
+        len_front = ins - orig;
+        tmp = strncpy(tmp, orig, len_front) + len_front;
+        tmp = strncpy(tmp, with,len_with) + len_with;
+        orig += len_front + len_rep; // move to next "end of rep"
+    }
+    strcpy(tmp, orig);
+    strcpy(start,result);
+    free(result);
+//    free(orig);
+}
+
+#define URLLEN strlen(URL)
+#define ITAGLEN strlen(ITAG)
+#define COMMALEN strlen(COMMA)
+#define ARGLEN strlen(argString)
+static const char * ITAG = "itag%3D";
+static const char * URL = "url%3D";
+static const char * COMMA = "%2C";
+
+int getResolution(char * argString)
 {
+	char * itagnum;
+	size_t itaglen = ITAGLEN;
+	uint8_t ret = 0;
+	if(argString == NULL)
+		return 0;
+	size_t numlen = strlen(argString)-ITAGLEN-COMMALEN;
+	itagnum = malloc((numlen+1)*sizeof(char));
+	strncpy(itagnum,(argString+ITAGLEN),numlen);
+	*(itagnum+numlen) = 0;
+	ret = atoi(itagnum);
+	free(itagnum);
+	return ret;
+}
+
+char * cutString(char * orig, const char * cutfrom) {
+	char * cutfromptr = strstr(orig,cutfrom);
+	size_t size = cutfromptr-orig;
+	char * newstring =(char *) calloc(1,(size+1));
+	strncpy(newstring,orig,size);
+	free(orig);
+	return newstring;
+}
+
+int main()
+{
+	const char * REG = "url_encoded_fmt_stream_map";
 	const char * Videofile = "youtube.html";
 	size_t buff = 4096;
 	size_t * buffptr = &buff;
 	char * line = malloc(sizeof(char)*buff);
 	char ** lineptr = &line;
 	FILE * file;
-
 	int i = 0;
 	file = fopen(Videofile,"r");
 	while(getline(lineptr,buffptr,file) > 0)
 	{
-		/* if(strncmp(*lineptr,"\n",1) == 0) */
-		/*    continue; */
-		/* if(strncmp(*lineptr,"<",1) == 0) */
-		/*    continue; */
+		char * next;
+		char * tmp;// = malloc(sizeof(char)*buff);
+		char * src;
+		int ret;
+		if(strncmp(*lineptr,"\n",1) == 0)
+			continue; 
+		if(strncmp(*lineptr,"<",1) == 0) 
+			continue;
 		/* if(strncmp(*lineptr,"'",1) == 0) */
 		/*    continue; */
-		/* if(strncmp(*lineptr,"        i",9) != 0) */
-		/*    continue; */
 		i++;
-		const char * REG = "url_encoded_fmt_stream_map";
-		char * src = strstr(*lineptr,REG);
+		
+		src = strstr(*lineptr,REG);
 		if(src == NULL)
 			continue;
-		src = strstr(src,"itag");
+		src += strlen(REG);
+		src = strstr(src,"url");
 //		tmp = strstr(tmp,"itag");
-		char * next = src;
-		char * tmp;// = malloc(sizeof(char)*buff);
-		char * tmp2;
-
-		while((next = strstr(src,",")) != NULL) 
+		next  = src;
+		
+		
+		while((next = strstr(src,URL)) != NULL) 
 		{
-			if(!strstr(src,"itag")) {
-				src = next;
-				src++;
-				continue;
-			}
-
 			tmp = calloc(1,next-src+1);
-			//while(src != next)
-			//	putchar(*src++);
 			strncpy(tmp,src,next-src);
 			src = next;
-			tmp2 = tmp;
-			tmp2 = replace_str(tmp2,"url=http%3A%2F%2F", "http://");
-			tmp2 = replace_str(tmp2,"%3F","?");
-			//			tmp2 = replace_str(tmp2,"%2F","/");
-			//	tmp2 = replace_str(tmp2,"%3D","=");
-			//	tmp2 = replace_str(tmp2,"%26","&");
+			if(*tmp == 0)
+			{
+				src++;
+				free(tmp);
+				continue;
+			}
+			
+			str_replace(tmp,"rl%3D","");
+			str_replace(tmp,"%252F","/");
+			str_replace(tmp,"%25252C",",");
+			str_replace(tmp,"%253D","=");
+			str_replace(tmp,"%253A",":");
+			str_replace(tmp,"%253F","?");
+			str_replace(tmp,"%2526","&");
 
-			printf("%s",tmp2);
-			printf("\nnewline\n");
-			putchar('\n');
+			ret = getResolution(strstr(tmp,ITAG));
+			tmp = cutString(tmp,"%26quality");
+			printf("%s  %d\n\n",tmp,ret);
 			free(tmp);
-			src += 1;
+			src += URLLEN;
 		}
-//		   if(strcmp(*lineptr,"</html>"))
-//		      return;
-	       
+		printf("count %d \n",i);
+		free(line);
+		fclose(file);
+		return 0;	       
 	}
-//	printf("\n count %d\n",i);
 }
 
-
-char *replace_str(char *str, char *orig, char *rep)
-{
-	static char buffer[4096];
-	char *ptrfirst;
-	char * src;
-	src = str;
-	char * buffptr = &buffer;
-	char * tmpptr;
-	size_t sizer = strlen(rep);
-	size_t sizeo = strlen(orig);
-	size_t move = 0;
-
-	while((ptrfirst = strstr(src, orig)))  // Is 'orig' even in 'str'?
-	{
-		move = ptrfirst-src;
-//		printf("%ld\n",move);
-		strncpy(buffptr,src,move);
-		buffptr += move;
-		src += move+sizeo;
-		strncpy(buffptr,rep,sizer);
-		buffptr += sizer;
-		tmpptr = ptrfirst;
-	}	
-	strncpy(buffptr,src,strlen(str)-(str-src));
-	
-	
-  return buffer;
-}
+typedef struct urlstruct {
+	char *resolutions[10];
+} urls;
