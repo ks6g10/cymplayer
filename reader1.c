@@ -270,7 +270,7 @@ streamFile(const char *filename)
 
 
 
-entry * getRootentry() {
+entry * getRootentry(char * filename) {
 
 	entry * rootentry = (entry *) NULL;
 	/*
@@ -280,7 +280,7 @@ entry * getRootentry() {
 	 */
 
 	LIBXML_TEST_VERSION
-		rootentry = streamFile("./newsub.xml");
+		rootentry = streamFile(filename);
 
 	if(rootentry == NULL)
 	{

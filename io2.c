@@ -110,10 +110,10 @@ char * cutString(char * orig, const char * cutfrom) {
 	return newstring;
 }
 
-int main()
+int geturlstruct(char * filename)
 {
 	const char * REG = "url_encoded_fmt_stream_map";
-	const char * Videofile = "youtube.html";
+	const char * Videofile = filename;
 	size_t buff = 4096;
 	size_t * buffptr = &buff;
 	char * line = malloc(sizeof(char)*buff);

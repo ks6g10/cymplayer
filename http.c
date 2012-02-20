@@ -1,13 +1,20 @@
 #include<stdio.h>
 #include<curl/curl.h>
 #include<string.h>
+#include "reader1.h"
 
-
+#define YOUTUBELEN strlen(YOUTUBE)
 
 static const char * FEEDUSER = "http://gdata.youtube.com/feeds/api/users/";
+static const char * YOUTUBE = "http://www.youtube.com/watch?v=";
 
-void main() {
-	const char * YOUTUBE = "http://www.youtube.com/watch?v=23BULaahgZY";
+FILE * getYoutubeHtml(char * youtubeid)
+{
+	char * url = malloc(strlen(youtubeid)+YOUTUBELEN+1);
+	strcpy(url,YOUTUBE);
+	strcpy((url+YOUTUBELEN),youtubeid);
+	printf("%s\n",url);
+	return NULL;
 	const char * Videofile = "tmpvideo.html";
 	CURL *curl;
 	CURLcode retur;
@@ -23,51 +30,31 @@ void main() {
 		fclose(file);
 		curl_easy_cleanup(curl);
 	}
-	
-	file = fopen(Videofile,"r");
-	if(file == NULL)
-		return;
-	size_t buff = 300;
-	size_t * buffptr = &buff;
-	char * line = malloc(sizeof(char)*buff);
-	char ** lineptr = &line;
-	int i = 0;
-	while(getline(lineptr,buffptr,file) > 0)
-	{
-		/* if(strncmp(*lineptr,"\n",1) == 0) */
-		/*    continue; */
-		/* if(strncmp(*lineptr,"<",1) == 0) */
-		/*    continue; */
-		/* if(strncmp(*lineptr,"'",1) == 0) */
-		/*    continue; */
-		/* if(strncmp(*lineptr,"        i",9) != 0) */
-		/*    continue; */
-		i++;
-
-		char * src = strstr(*lineptr,"url_encoded_fmt_stream_map");
-		if(src == NULL)
-			continue;
-		src = strstr(src,"itag");
-//		tmp = strstr(tmp,"itag");
-		 char * next = src;
-
-		while((next = strstr(src,"itag")) != NULL) 
-		{
-			while(src != next)
-				putchar(*src++);
-			putchar('\n');
-			putchar('\n');
-			src += 4;
-		}
-//		   if(strcmp(*lineptr,"</html>"))
-//		      return;
-	       
-	}
-	printf("\n count %d\n",i);
 }
 
+void main() {
+	FILE * newsub = getNewsub("p0jk3n");
+	entry * rootentry = getRootentry(newsub);
 
-FILE * getnewsub() {
+}
+
+void getThumbs(entry * rootentry)
+{
+	CURL *curl;
+	CURLcode retur;
+	entry * current = rootentry;
+	char * name = strcat(rootentry->fields[ID],".jpg");
+	curl = curl_easy_init();
+	while(current->next != NULL)
+	{
+		
+
+	}
+
+}
+
+FILE * getNewsub(char * username) 
+{
 	const char * NEWSUB = "/newsubscriptionvideos?v=2";
 	const char * FULL = "http://gdata.youtube.com/feeds/api/users/p0jk3n/newsubscriptionvideos?v=2";
 	const char * NAME = "newsub.xml";

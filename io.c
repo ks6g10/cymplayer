@@ -6,7 +6,7 @@
 
 #define UNLENGTH (strlen(USERNAME))
 
-int main() 
+char * getUsername() 
 {
 	const char * SETTINGS_PATH = "./.cymplayer/settings";
 	const char * DIR_PATH = "./.cymplayer";
