@@ -61,22 +61,14 @@ nodetype(char *parent)
 		}
 		else if(strcmp(parent,"yt:videoid") == 0)  
 		{
-		return ID;
+			return ID;
 		}
 	} 
-	else if(strncmp(parent,CHARM,1)==0) 
-	{
 	
-		if(strcmp(parent,"media:credit") == 0) 
-		{
-			return AUTHOR;
-		}
-		else if(strcmp(parent,"media:title") == 0) 
-		{
-			return TITLE;
-		}
+	if(strcmp(parent,"media:title") == 0) 
+	{
+		return TITLE;
 	}
-
 	return 0;
 }
 
@@ -93,7 +85,7 @@ processNode(xmlTextReaderPtr reader,char *parent, entry *argEntry)
 	short type, depth;
 	depth = xmlTextReaderDepth(reader);
 	type =  xmlTextReaderNodeType(reader);
-
+	
 	if(depth == 4 && type == 3) 
 	{ /* if the value is a child node */
 		short ret = nodetype(parent);
@@ -101,14 +93,14 @@ processNode(xmlTextReaderPtr reader,char *parent, entry *argEntry)
 		if(__builtin_expect(ret == 0,0)) //if no match
 			return;
 		//If there is more than one credit field, only take the first.
-		if(argEntry->fields[ret] !=NULL) {
-			return;
-		}
+//		if(argEntry->fields[ret] !=NULL) {
+//			return;
+//		}
 		const char *value;
 		char* ptr;
-
+		
 		value = (const char *) xmlTextReaderConstValue(reader);
-		ptr = (char *)  malloc( (strlen(value) + 1) * (sizeof(char)) ); //alloc space for string
+		ptr = (char *)  malloc(strlen(value)+sizeof(char) ); //alloc space for string
 		strcpy(ptr,value);
 		argEntry->fields[ret] = ptr;		
 		
@@ -117,7 +109,15 @@ processNode(xmlTextReaderPtr reader,char *parent, entry *argEntry)
 	{   /* if the value is not a child but a attribute */
 		char *name;
 		name =(char *) xmlTextReaderConstName(reader);
-
+		
+		if(strcmp(name,"media:credit") == 0)
+		{
+			char * author = (char *) xmlTextReaderGetAttributeNo(reader,2);
+			argEntry->fields[AUTHOR] = malloc(strlen(author)+sizeof(char));
+			strcpy(argEntry->fields[AUTHOR],author);
+			free(author);
+		}
+		
 		if(__builtin_expect(strcmp(name,"yt:duration") == 0,0)) 
 		{     /* gives you the duration */
 			char *duration;
@@ -270,7 +270,8 @@ streamFile(const char *filename)
 
 
 
-entry * getRootentry(char * filename) {
+entry * getRootentry(char * filename)
+{
 
 	entry * rootentry = (entry *) NULL;
 	/*
@@ -346,7 +347,7 @@ entry * getRootentry(char * filename) {
 int run() {
 
 	entry * rootentry = (entry *) NULL;
-	rootentry = getRootentry();
+	//rootentry = getRootentry();
 	printEntryArray(rootentry);
 	freeEntryArray( rootentry);
 

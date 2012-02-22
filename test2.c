@@ -18,14 +18,15 @@
  */
 
 #include<gtk/gtk.h>
-#include"reader1.h"
+//#include"reader1.h"
+#include"http.h"
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
 #include<math.h>
 #include<stdint.h>
 #include<time.h>
-
+#include"streamfetch.h"
 
 #define ENTRYWIDTH 122
 #define COLOR8BIT  255
@@ -100,6 +101,15 @@ uint16_t adjustTitleColor(GdkRGBA * argColor) {
 	return (colorBrightness < COLORBREAK);	
 }
 
+void getytstream(GtkWidget *window, GdkEvent *event, gpointer data)
+{
+	char * id = (char *) data;
+	char * filename;
+	streamstruct * streams;
+	filename = getYoutubeHtml(id);
+	streams = geturlstruct(filename);
+
+}
 
 GtkWidget * createwidget(entry * argEntry) 
 {
@@ -113,15 +123,22 @@ GtkWidget * createwidget(entry * argEntry)
 	entrywidget * eWidget; 
 	GdkRGBA * bgcolor = NULL;
 	uint8_t colorret =0;
+	char * id;
 	if(argEntry == (entry *) NULL)
 		return (GtkWidget *) NULL;
 	//construction
+
+
 	top = gtk_event_box_new();
 	box = gtk_box_new(GTK_ORIENTATION_VERTICAL,0);
-	thumb = gtk_image_new_from_file("./default.jpg");
+
+	id = getfilename(argEntry);
+	thumb = gtk_image_new_from_file(id);
+	free(id);
+
+
 	title    = gtk_label_new(argEntry->fields[TITLE]);
 	author   = gtk_label_new(argEntry->fields[AUTHOR]);
-	printf("%s\n",argEntry->fields[AUTHOR]);
 	duration = gtk_label_new(argEntry->fields[DURATION]);
 	thumboverlay = gtk_overlay_new();
 	eWidget->thisstruct = argEntry;	
@@ -156,7 +173,10 @@ GtkWidget * createwidget(entry * argEntry)
 	gtk_widget_override_color(title,GTK_STATE_FLAG_NORMAL,RGBARRAY[colorret]);
 	gtk_widget_override_background_color(top,GTK_STATE_FLAG_NORMAL,bgcolor);
 	free(bgcolor);
-
+	
+//	gtk_widget_add_events(thumb, GDK_BUTTON_MOTION_MASK);
+	g_signal_connect(top,"button-press-event",G_CALLBACK(getytstream),argEntry->fields[ID]);
+	
 	gtk_widget_override_background_color(thumboverlay,GTK_STATE_FLAG_NORMAL,&BLACK);
 	gtk_widget_override_color(author,GTK_STATE_FLAG_NORMAL,&WHITE);
 	gtk_widget_override_color(duration,GTK_STATE_FLAG_NORMAL,&WHITE);
@@ -164,6 +184,7 @@ GtkWidget * createwidget(entry * argEntry)
 	gtk_widget_show_all(top);
 	return top;	
 }
+
 
 
 void arrange_window(entry * argentry, GtkWidget * layout,uint16_t width,
@@ -267,11 +288,10 @@ void destroy(GtkWindow *window, GdkEvent *event, gpointer data) {
 
 int main(int argc, char *argv[]) 
 {
-	clock_t start = clock();
 	GtkWidget * window;
 	GtkWidget * layout;
-	entry * rootentry = (entry *) NULL;
-	rootentry = getRootentry();
+
+
 	gtk_init(&argc,&argv);
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	gtk_window_set_default_size(GTK_WINDOW(window), STARTWIDTH,STARTHEIGHT);
@@ -279,16 +299,27 @@ int main(int argc, char *argv[])
 	gtk_widget_show_all(window);
 
 //if kill
-	g_signal_connect(window, "destroy", G_CALLBACK(destroy), NULL);
-	gtk_widget_add_events(GTK_WIDGET(window), GDK_CONFIGURE);
-	g_signal_connect(window, "configure-event",G_CALLBACK(window_resize),rootentry);
 	
+
+	char * newsub =(char *) getNewsub("p0jk3n");
+	if(!newsub)
+		exit(2);
+	entry * rootentry = getRootentry(newsub);
+	if(!rootentry)
+		exit(2);
+	int ret = getThumbs(rootentry);
+	printf("ret thing %d\n",ret);
+
+
 	layout = getEntryGrid(rootentry,window);
 	gtk_container_add(GTK_CONTAINER(window), layout);
 	//	gtk_widget_show_all(layout);
 	gtk_widget_show_all(window);
-	printf("Time elapsed: %f\n", ((double)clock() - start) / CLOCKS_PER_SEC);
-	gtk_main();
+
+	g_signal_connect(window, "destroy", G_CALLBACK(destroy), NULL);
+	gtk_widget_add_events(window, GDK_CONFIGURE);
+	g_signal_connect(window, "configure-event",G_CALLBACK(window_resize),rootentry);
+     	gtk_main();
 	return 0;
 
 }

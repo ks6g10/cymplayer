@@ -34,5 +34,6 @@ typedef struct entrystruct {
 	struct entrystruct *next;
 } entry;
 
-entry * getRootentry(char * filename);
+
 void freeEntryArray(entry *argRoot);
+entry * getRootentry(char * filename);

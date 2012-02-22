@@ -21,8 +21,17 @@
 #include<string.h>
 #include<stdlib.h>
 #include<stdint.h>
+#include"streamfetch.h"
+#include"http.h"
+#define URLLEN strlen(URL)
+#define ITAGLEN strlen(ITAG)
+#define COMMALEN strlen(COMMA)
+#define ARGLEN strlen(argString)
+static const char * ITAG = "itag%3D";
+static const char * URL = "url%3D";
+static const char * COMMA = "%2C";
 
-void replace_str(char *str, char *orig, char *rep,int singel);
+void putUrl(streamstruct * argStruct, int resolution, char * url);
 
 /*str_replace derived from jmucchiello and Samuel_xL at stackoverflow
  * http://stackoverflow.com/questions/779875/what-is-the-function-to-replace-string-in-c
@@ -77,13 +86,6 @@ void str_replace(char *orig, char *rep, char *with) {
 //    free(orig);
 }
 
-#define URLLEN strlen(URL)
-#define ITAGLEN strlen(ITAG)
-#define COMMALEN strlen(COMMA)
-#define ARGLEN strlen(argString)
-static const char * ITAG = "itag%3D";
-static const char * URL = "url%3D";
-static const char * COMMA = "%2C";
 
 int getResolution(char * argString)
 {
@@ -110,15 +112,21 @@ char * cutString(char * orig, const char * cutfrom) {
 	return newstring;
 }
 
-int geturlstruct(char * filename)
+
+
+
+
+streamstruct *  geturlstruct(char * id)
 {
+
 	const char * REG = "url_encoded_fmt_stream_map";
-	const char * Videofile = filename;
+	const char * Videofile = id;
 	size_t buff = 4096;
 	size_t * buffptr = &buff;
 	char * line = malloc(sizeof(char)*buff);
 	char ** lineptr = &line;
 	FILE * file;
+	streamstruct * streamptr = malloc(sizeof(streamstruct));
 	int i = 0;
 	file = fopen(Videofile,"r");
 	while(getline(lineptr,buffptr,file) > 0)
@@ -166,17 +174,30 @@ int geturlstruct(char * filename)
 
 			ret = getResolution(strstr(tmp,ITAG));
 			tmp = cutString(tmp,"%26quality");
-			printf("%s  %d\n\n",tmp,ret);
-			free(tmp);
+			//printf("%s  %d\n\n",tmp,ret);
+			putUrl(streamptr,ret,tmp);
+			//free(tmp);
 			src += URLLEN;
 		}
 		printf("count %d \n",i);
 		free(line);
 		fclose(file);
-		return 0;	       
+		return streamptr;	       
 	}
 }
 
-typedef struct urlstruct {
-	char *resolutions[10];
-} urls;
+void putUrl(streamstruct * argStruct, int resolution, char * url)
+{
+	if(resolution == MP480)
+	{
+		argStruct->mp480 = url;
+	} 
+	else if(resolution == MP720)
+	{
+		argStruct->mp720 = url;
+	}
+	else if(resolution == MP1080)
+	{
+		argStruct->mp1080 = url;
+	}
+}
