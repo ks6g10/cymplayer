@@ -14,17 +14,20 @@ const char * SETTINGS = "/settings";
 const char * DIR_PATH = "/.cymplayer";
 const char * USERNAME = "Username=";
 static char * homedir;
+static char * settingsdir;
 
 char * getusername();
 void writesetting(char * username);
 
 
-char * init_filehandler()
+void init_filehandler()
 {
 
 	uid_t userid = getuid();
 	struct passwd * userpasswd = getpwuid(userid);
 	homedir = userpasswd->pw_dir;
+	settingsdir = (char *) calloc(1,HOMEDIRLEN+sizeof(char));
+	sprintf(settingsdir,"%s%s",homedir,DIR_PATH);
 	if(!(homedir))
 	{
 		fprintf(stderr,"Could not aquire homedir directory");
@@ -32,9 +35,14 @@ char * init_filehandler()
 
 	}
 	
-	return homedir;
 }
 
+char * get_settingsdir()
+{
+	if(!settingsdir)
+		init_filehandler();
+	return settingsdir;
+}
 
 char * get_username() 
 {

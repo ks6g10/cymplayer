@@ -126,10 +126,12 @@ streamstruct *  get_urlstruct(const char * filename)
 	char * line = malloc(sizeof(char)*buff);
 	char ** lineptr = &line;
 	FILE * file;
-	streamstruct * streamptr =(streamstruct *) malloc(sizeof(streamstruct));
+	streamstruct * streamptr =(streamstruct *) calloc(1,sizeof(streamstruct));
 	int i = 0;
 	file = fopen(Videofile,"r");
-
+	streamptr->mp480 = NULL;
+	streamptr->mp720 = NULL;
+	streamptr->mp1080 = NULL;
 	while(getline(lineptr,buffptr,file) > 0)
 	{
 

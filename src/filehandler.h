@@ -3,3 +3,4 @@
  */
 char * get_username();
 void write_settings(char * username);
+char * get_settingsdir();

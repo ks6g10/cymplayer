@@ -18,14 +18,15 @@
  */
 #include <gtk/gtk.h>
 
-#define MAXFIELDS 6
+#define MAXFIELDS 7
 
 enum arrayindex {
 	UPLOADED=1,
 	AUTHOR=2,
 	TITLE =3,
 	ID=4,
-	DURATION=5
+	DURATION=5,
+	THUMBLOC=6
 };
 
 typedef struct entrystruct {

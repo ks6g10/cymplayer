@@ -300,6 +300,7 @@ entry * get_rootentry(char * filename)
 	 * this is to debug memory for regression tests
 	 */
 	xmlMemoryDump();
+//	printf("root title %s",rootentry->fields[TITLE]);
 	return rootentry;
 
 }

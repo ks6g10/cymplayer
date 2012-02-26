@@ -30,7 +30,7 @@
 #include"filehandler.h"
 
 
-#define ENTRYWIDTH 122
+#define ENTRYWIDTH 120
 #define COLOR8BIT  255
 #define COLORBREAK 125
 #define STARTWIDTH 1024
@@ -38,6 +38,7 @@
 #define ENTRYHEIGHT 122
 
 static 	char * statusername;
+static  GtkWidget * mainwindow;
 
 
 typedef struct entry_w_struct 
@@ -58,6 +59,8 @@ const GdkRGBA * RGBARRAY[2] = {&BLACK,&WHITE};// = {{BLACK}{WHITE}};
 //const uint8_t COLORBREAK = 125;
 //const uint8_t COLOR8BIT = 255;
 //const uint8_t ENTRYWIDTH = 122;
+
+
 
 uint32_t hash_string(char * argstring)
 {
@@ -115,12 +118,45 @@ void get_ytstream(GtkWidget *window, GdkEvent *event, gpointer data)
 
 	printf("got filename %s\n", filename);
 	streams = get_urlstruct(filename);
-	printf("got streams %s\n",streams->mp720);	
 	char * options = " -slave -quiet -idle -cache 8048 -cache-min 50";
-	int ret;
+	gint ret;
 	pid_t pid;
-	char * streamurl = streams->mp480;
-  
+	char * streamurl;
+
+	GtkWidget * dialog = gtk_dialog_new_with_buttons("Select resolution",
+							 GTK_WINDOW(mainwindow) ,
+							 GTK_DIALOG_DESTROY_WITH_PARENT,
+							 NULL);
+	GtkWidget * tmpbutton;
+
+	tmpbutton = gtk_dialog_add_button(GTK_DIALOG(dialog),"MP4 480P",MP480);
+	gtk_widget_set_sensitive(tmpbutton,(streams->mp480 != NULL));
+	tmpbutton = gtk_dialog_add_button(GTK_DIALOG(dialog),"MP4 720P",MP720);
+	gtk_widget_set_sensitive(tmpbutton,(streams->mp720 != NULL));
+	tmpbutton = gtk_dialog_add_button(GTK_DIALOG(dialog),"MP4 1080P",MP1080);
+	gtk_widget_set_sensitive(tmpbutton,(streams->mp1080 != NULL));
+	
+	gtk_widget_show_all(dialog);
+
+	ret = gtk_dialog_run(GTK_DIALOG(dialog));
+	gtk_widget_destroy(dialog);
+	switch(ret)
+	{
+	case MP480:
+		streamurl = streams->mp480;
+		break;
+	case MP720:
+		streamurl = streams->mp720;
+		break;
+	case MP1080:
+		streamurl = streams->mp1080;
+		break;
+	default:
+		fprintf(stderr,"Something went wrong when choosing resolution");
+		return;
+		break;
+	}
+
 	switch ((pid = fork()))
 	{
 	case -1:
@@ -150,7 +186,10 @@ GtkWidget * create_videobox(entry * argEntry)
 	
 	GdkRGBA * bgcolor = NULL;
 	uint8_t colorret =0;
-	char * id;
+
+
+
+
 	if(argEntry == (entry *) NULL)
 		return (GtkWidget *) NULL;
 	//construction
@@ -159,10 +198,9 @@ GtkWidget * create_videobox(entry * argEntry)
 	top = gtk_event_box_new();
 	box = gtk_box_new(GTK_ORIENTATION_VERTICAL,0);
 
-	id = get_thumb_filename(argEntry);
+	get_thumb_filename(argEntry);
 
-	thumb = gtk_image_new_from_file(id);
-	free(id);
+	thumb = gtk_image_new_from_file(argEntry->fields[THUMBLOC]);
 
 
 	title    = gtk_label_new(argEntry->fields[TITLE]);
@@ -173,6 +211,8 @@ GtkWidget * create_videobox(entry * argEntry)
 
 	gtk_label_set_ellipsize(GTK_LABEL(title),PANGO_ELLIPSIZE_END);
 	gtk_label_set_ellipsize(GTK_LABEL(author),PANGO_ELLIPSIZE_END);
+	gtk_label_set_line_wrap(GTK_LABEL(title),gtk_true());
+	gtk_widget_set_tooltip_text(title,argEntry->fields[TITLE]);
 
 	gtk_widget_set_size_request(thumboverlay,120,20);
 	gtk_widget_set_size_request(top,ENTRYWIDTH,ENTRYHEIGHT);
@@ -326,9 +366,9 @@ void fetch_new_videos(GtkWindow * window)
 	GtkWidget * layout;
 	GtkWidget * mainwindow = GTK_WIDGET(window);
 	entry * rootentry;
-
 	char * newsub;
 	int retur;
+
 	newsub =(char *) get_newsub(statusername);
 
 	if(!newsub)
@@ -341,14 +381,17 @@ void fetch_new_videos(GtkWindow * window)
 	
        	layout = get_entrygrid(rootentry);
 
+	g_signal_connect(window, "configure-event",G_CALLBACK(window_resize),rootentry);
 	gtk_container_add(GTK_CONTAINER(mainwindow), layout);
-	gtk_widget_show_all(mainwindow);
+
 
 	gtk_widget_add_events(mainwindow, GDK_CONFIGURE);
-	g_signal_connect(window, "configure-event",G_CALLBACK(window_resize),rootentry);
+
 
 	gtk_widget_override_background_color(layout,GTK_STATE_FLAG_NORMAL,&BLACK);
-
+	gtk_widget_show_all(layout);
+	gtk_widget_show_all(mainwindow);
+	gtk_window_resize(window,STARTWIDTH,STARTHEIGHT);
 	
 }
 
@@ -356,7 +399,7 @@ void put_username(GtkWidget * argentry)
 {
 
 	char * username = (char *) gtk_entry_get_text(GTK_ENTRY(argentry));
-	printf("hellolo%s",username);
+//	printf("hellolo%s",username);
 	statusername = (char *) malloc(strlen(username)+sizeof(char));
 	strcpy(statusername,username);
 	write_settings(statusername);
@@ -374,23 +417,33 @@ void insert_text_handler (GtkEntry    *entry,
 	GtkWidget * button = (GtkWidget *) data;
 	GtkEditable *editable = GTK_EDITABLE(entry);
 	int i, count=0;
+	int issensitive;
 	int entrylen = gtk_entry_get_text_length(GTK_ENTRY(entry));
 	gchar *result = g_new(gchar, length);
 	static char prev;
+
 	for (i=0; i < length; i++) {
-		printf("lenght %d pos %d \n",entrylen,*position);
 		if(text[i] == '.' && *position > 0 && prev != '.')
+		{
 			result[count++] = text[i];
+			prev = text[i];
+			continue;
+		}
 		if (isalnum(text[i]))
+		{
 			result[count++] = text[i];
-		prev = text[i];
+			prev = text[i];
+			continue;
+		}
 	}
 	
 	if (count > 0) {
 		g_signal_handlers_block_by_func (G_OBJECT (editable),
 						 G_CALLBACK (insert_text_handler),
 						 data);
+
 		gtk_editable_insert_text (editable, result, count, position);
+
 		g_signal_handlers_unblock_by_func (G_OBJECT (editable),
 						   G_CALLBACK (insert_text_handler),
 						   data);
@@ -398,7 +451,8 @@ void insert_text_handler (GtkEntry    *entry,
 	g_signal_stop_emission_by_name (G_OBJECT (editable), "insert_text");
 	
 	g_free (result);
-	int issensitive = (!(entrylen < 5) && !(prev == '.'));
+	
+	issensitive = (!(entrylen < 5) && !(prev == '.'));
 	gtk_widget_set_sensitive(button,issensitive);
 
 		
@@ -406,17 +460,33 @@ void insert_text_handler (GtkEntry    *entry,
 }
 
 void delete_text_handler(GtkEntry    *entry,
-                          const gchar *text,
-                          gint         length,
-                          gint        *position,
-                          gpointer     data)
+			 gint        start_pos,
+			 gint        end_pos,
+			 gpointer    data)
 {
 	GtkWidget * button = (GtkWidget *) data;
-	int entrylen = gtk_entry_get_text_length(GTK_ENTRY(entry));
-	int count=0;
-	printf("%s",text);
-	g_signal_stop_emission_by_name (G_OBJECT (editable), "delete_text");
+	GtkEditable *editable = GTK_EDITABLE(entry);
+	int issensitive;
+	int entrylen;
+	char * text;
 
+	g_signal_handlers_block_by_func (G_OBJECT (editable),
+					 G_CALLBACK (delete_text_handler),
+					 data);
+
+	gtk_editable_delete_text(editable, start_pos, end_pos);
+
+	g_signal_handlers_unblock_by_func (G_OBJECT (editable),
+					   G_CALLBACK (delete_text_handler),
+					   data);
+
+	g_signal_stop_emission_by_name (G_OBJECT (entry), "delete_text");
+
+	text =  gtk_entry_get_text(GTK_ENTRY(entry));
+	entrylen = gtk_entry_get_text_length(GTK_ENTRY(entry));
+	issensitive = (!(entrylen < 6) && !(text[entrylen-1] == '.'));
+
+	gtk_widget_set_sensitive(button,issensitive);
 }
 
 char * show_username_dialog(GtkWindow * window)
@@ -445,7 +515,7 @@ char * show_username_dialog(GtkWindow * window)
 			 button);
 	
 	/* Ensure that the dialog box is destroyed when the user responds. */
-	//	g_signal_connect_swapped(dialog,"response",G_CALLBACK(gtk_widget_destroy),dialog);
+	g_signal_connect_swapped(dialog,"response",G_CALLBACK(gtk_widget_destroy),dialog);
 	/* Add the label, and show everything we've added to the dialog. */
 	gtk_container_add(GTK_CONTAINER (content_area), label);
 	gtk_container_add(GTK_CONTAINER (content_area), entry);
@@ -454,7 +524,6 @@ char * show_username_dialog(GtkWindow * window)
 	
 	gtk_widget_show_all(dialog);
 
-	
 	gint result = gtk_dialog_run(GTK_DIALOG (dialog));
 	switch (result)
 		{
@@ -467,9 +536,9 @@ char * show_username_dialog(GtkWindow * window)
 			gtk_main_quit();
 			break;
 		}
-		gtk_widget_destroy(dialog);
-	//fetch_new_videos(GTK_WINDOW(window));
 	
+	gtk_widget_destroy(dialog);
+	fetch_new_videos(GTK_WINDOW(window));	
 }
 
 
@@ -482,32 +551,32 @@ void init_mainwindow(GtkWindow * window, GdkEvent *event, gpointer data)
 	gulong handler_id = *((gulong *) data);
 	g_signal_handler_disconnect(window,handler_id);
 	gtk_widget_override_background_color(GTK_WIDGET(window),GTK_STATE_FLAG_NORMAL,&BLACK);
-	
+	free(data);
+
 	if(!statusername)
 		show_username_dialog(window);
 	else
 		fetch_new_videos(window);
-
+	
 
 }
 
 int main(int argc, char *argv[]) 
 {
-	GtkWidget * window;
 	gulong mapid;
-	gulong * mapptr;
+	gulong * mapptr = malloc(sizeof(gulong));
 
 	gtk_init(&argc,&argv);
-	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	gtk_window_set_default_size(GTK_WINDOW(window), STARTWIDTH,STARTHEIGHT);
+	mainwindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	gtk_window_set_default_size(GTK_WINDOW(mainwindow), STARTWIDTH,STARTHEIGHT);
 	
 
-	mapid = g_signal_connect(window,"map-event",G_CALLBACK(init_mainwindow),mapptr);
+	mapid = g_signal_connect(mainwindow,"map-event",G_CALLBACK(init_mainwindow),mapptr);
 	*mapptr = mapid;
 
-	g_signal_connect(window, "destroy", G_CALLBACK(destroy), NULL);
+	g_signal_connect(mainwindow, "destroy", G_CALLBACK(destroy), NULL);
 	
-	gtk_widget_show_all(window);
+	gtk_widget_show_all(mainwindow);
 
 	gtk_main();
 	return 0;

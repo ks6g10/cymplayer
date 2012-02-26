@@ -3,24 +3,26 @@
 #include<string.h>
 #include<stdlib.h>
 #include"http.h"
+#include"filehandler.h"
 #define YOUTUBELEN strlen(YOUTUBE)
 #define CURLINITFAIL 2
 #define PRELEN strlen(PREFIX)
 #define JPGLEN strlen(JPG)
-
+#define FILEPATHLEN (strlen(VIDEOFILE)+SETTINGSPATHLEN)
+#define SETTINGSPATHLEN (strlen(settingsdir))
 const char * NEWSUB = "/newsubscriptionvideos?v=2";
 const char * GDATA = "http://gdata.youtube.com/feeds/api/users/";
 const char * ERR = "Something went wrong while fetching files, make sure your internet connection is working\n";
-const char * XMLFILE = "newsub.xml";
+const char * XMLFILE = "/newsub.xml";
 const char * FEEDUSER = "http://gdata.youtube.com/feeds/api/users/";
 const char * YOUTUBE = "http://www.youtube.com/watch?v=";
 const char * JPG = ".jpg";
 const char * YTIMGPRE = "http://i4.ytimg.com/vi/";
 const char * DEF = "/default.jpg";
 const char * VIDEOFILE = "tmpvideo.html";
+static char * settingsdir;
 
-const char * get_newsub(char * username);
-
+char * get_newsub(char * username);
 
 /*@youtubeid the id of a youtube video, get it from entry->fields[ID]
  *@return either the const videofile or NULL if error occur.
@@ -28,13 +30,15 @@ const char * get_newsub(char * username);
  */
 const char * get_youtubehtml(char * youtubeid)
 {
+	if(!settingsdir)
+		settingsdir = get_settingsdir();
+	
 	char * url = malloc(strlen(youtubeid)+YOUTUBELEN+1);
 	sprintf(url,"%s%s",YOUTUBE,youtubeid);
-//	strcpy(url,YOUTUBE);
-//	strcpy((url+YOUTUBELEN),youtubeid);
 	printf("%s\n",url);
-//	return NULL;
-	const char * filename = VIDEOFILE;
+
+	char * filename = calloc(1,FILEPATHLEN+sizeof(char));
+	sprintf(filename,"%s%s",settingsdir,VIDEOFILE);
 	CURL *curl;
 	CURLcode retur;
 	FILE * file;
@@ -60,24 +64,26 @@ const char * get_youtubehtml(char * youtubeid)
 	curl_easy_cleanup(curl);
 	
 	free(url);
-	return (const char *) filename;
+	return (char *) filename;
 }
 
 
 
 
-char * get_thumb_filename(entry * argentry)
+void get_thumb_filename(entry * argentry)
 {
-	const char * PREFIX = "./";
+	if(!settingsdir)
+		settingsdir = get_settingsdir();	
+	const char * PREFIX = "/";
 	const char * JPG = ".jpg";
 	char * id = argentry->fields[ID];
 	size_t idlen = strlen(id);
-	char * filename = malloc(idlen+JPGLEN+PRELEN+sizeof(char));
-	sprintf(filename,"%s%s%s",PREFIX,id,JPG);
+	char * filename = malloc(SETTINGSPATHLEN+PRELEN+idlen+JPGLEN+sizeof(char));
+	sprintf(filename,"%s%s%s%s",settingsdir,PREFIX,id,JPG);
+	argentry->fields[THUMBLOC] = filename;
 //	strcpy(filename,PREFIX);
 //	strcpy((filename+PRELEN),id);
 //	strcpy((filename+PRELEN+idlen),JPG);	
-	return (char *) filename;
 }
 
 
@@ -95,10 +101,9 @@ int get_thumbs(entry * rootentry)
 	CURLcode retur;
 	size_t idlen;
 	entry * current = rootentry;
-	char * filename;// = strcat(rootentry->fields[ID],".jpg");
 	char * link = malloc(DEFLEN+YTIMGLEN+15*sizeof(char));
 	FILE * file;
-	
+	printf("title %s",rootentry->fields[TITLE]);
 
 	curl = curl_easy_init();
 	if(!curl)
@@ -106,25 +111,24 @@ int get_thumbs(entry * rootentry)
 	while(current->next != NULL)
 	{
 		idlen = strlen(current->fields[ID]);
-		filename = get_thumb_filename(current);
+		get_thumb_filename(current);
 
-		if((file = fopen(filename,"r"))) 
+		if((file = fopen(current->fields[THUMBLOC],"r"))) 
 		{
 			fclose(file);
 			current = current->next;
 			continue;	
 		} 
 		
-		file = fopen(filename,"w");
+		file = fopen(current->fields[THUMBLOC],"w");
 
 		sprintf(link,"%s%s%s",YTIMGPRE,current->fields[ID],DEF);
-		fprintf(stdout, "Fetching %s from %s\n",filename,link);
+		fprintf(stdout, "Fetching %s from %s\n",current->fields[THUMBLOC],link);
 		
 		curl_easy_setopt(curl,CURLOPT_URL,link);
 		curl_easy_setopt(curl,CURLOPT_WRITEDATA,file);
 		retur = curl_easy_perform(curl);
 		fclose(file);
-		free(filename);
 		current = current->next;
 	}
 	curl_easy_cleanup(curl);
@@ -138,29 +142,35 @@ int get_thumbs(entry * rootentry)
  *@return returns NULL if there is problem donwloading, else returns the const char * to NAME
  */
 
-const char * get_newsub(char * username) 
+char * get_newsub(char * username) 
 {
-	
+	if(!settingsdir)
+		settingsdir = get_settingsdir();	
+		
 	CURL *curl;
 	CURLcode retur;
 	FILE* file;
-	char * fullurl = malloc(strlen(GDATA)+strlen(username)+strlen(NEWSUB)+sizeof(char));
+	char * filepath =(char *) malloc((strlen(settingsdir)+strlen(XMLFILE)+sizeof(char)));
+	sprintf(filepath,"%s%s",settingsdir,XMLFILE);
+	printf("filepath %s\n",filepath);
+	char * fullurl = (char *) malloc(strlen(GDATA)+strlen(username)+strlen(NEWSUB)+sizeof(char));
 	sprintf(fullurl,"%s%s%s",GDATA,username,NEWSUB);
+
 	curl = curl_easy_init();
 	if(curl) 
 	{
 		fprintf(stdout,"Downloading the newsubscription xml %s\n",fullurl);
-		file  = fopen(XMLFILE, "w");
+		file  = fopen(filepath, "w");
 		curl_easy_setopt(curl,CURLOPT_URL,fullurl);
 		curl_easy_setopt(curl,CURLOPT_WRITEDATA,file);
 		retur = curl_easy_perform(curl);
 		if(retur != 0) {
 			fclose(file);
 			fprintf(stderr,ERR);
-			return (const char *) NULL;
+			return ( char *) NULL;
 		}
 	}
 	fclose(file);
 	curl_easy_cleanup(curl);
-	return (const char *) XMLFILE;
+	return (char *) filepath;
 }
