@@ -81,14 +81,17 @@ char * get_username()
 	return (char *) username;
 }
 
-void writesetting(char * username) 
+void write_settings(char * username) 
 {
 	FILE * settings;
 	DIR * settings_dir;
 	char * dirpath = malloc(HOMEDIRLEN+sizeof(char));
 	char * fullpath;
 	int ret;
-	
+
+	if(!(homedir))
+		init_filehandler();
+
 	sprintf(dirpath,"%s%s",homedir,DIR_PATH);
 	fprintf(stdout,"Opening %s\n",dirpath);
 	settings_dir = opendir(dirpath);

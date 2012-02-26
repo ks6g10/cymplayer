@@ -2,4 +2,4 @@
  *
  */
 char * get_username();
-void writesetting(char * username);
+void write_settings(char * username);
