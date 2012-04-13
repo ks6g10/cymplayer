@@ -18,7 +18,7 @@
  */
 
 #include<gtk/gtk.h>
-//#include"reader1.h"
+#include"reader1.h"
 #include"http.h"
 #include<stdio.h>
 #include<stdlib.h>
@@ -39,19 +39,8 @@
 
 static 	char * statusername;
 static  GtkWidget * mainwindow;
+static  GtkWidget * mainlayout;
 
-
-typedef struct entry_w_struct 
-{
-	GtkWidget * top; /*top widget to be used when added to the main window */
-	GtkWidget * box;
-	GtkWidget * title;
-	GtkWidget * author;
-	GtkWidget * duration;
-	GtkWidget * thumboverlay; /*GTKoverlay to overlay author and duration over the image thumb.*/
-	GtkWidget * thumb;
-	entry     * thisstruct;
-}entrywidget;
 
 const GdkRGBA BLACK = {(gdouble) 0,(gdouble) 0,(gdouble) 0,(gdouble) 1};
 const GdkRGBA WHITE = {(gdouble) 1,(gdouble) 1,(gdouble) 1,(gdouble) 1};
@@ -126,6 +115,7 @@ void get_ytstream(GtkWidget *window, GdkEvent *event, gpointer data)
 	GtkWidget * dialog = gtk_dialog_new_with_buttons("Select resolution",
 							 GTK_WINDOW(mainwindow) ,
 							 GTK_DIALOG_DESTROY_WITH_PARENT,
+							 NULL,
 							 NULL);
 	GtkWidget * tmpbutton;
 
@@ -152,7 +142,7 @@ void get_ytstream(GtkWidget *window, GdkEvent *event, gpointer data)
 		streamurl = streams->mp1080;
 		break;
 	default:
-		fprintf(stderr,"Something went wrong when choosing resolution");
+		fprintf(stderr,"Something went wrong when choosing resolution\n");
 		return;
 		break;
 	}
@@ -197,8 +187,9 @@ GtkWidget * create_videobox(entry * argEntry)
 
 	top = gtk_event_box_new();
 	box = gtk_box_new(GTK_ORIENTATION_VERTICAL,0);
-
-	get_thumb_filename(argEntry);
+	
+	/*http.c*/
+	set_thumb_filename(argEntry);
 
 	thumb = gtk_image_new_from_file(argEntry->fields[THUMBLOC]);
 
@@ -256,7 +247,7 @@ GtkWidget * create_videobox(entry * argEntry)
 
 
 
-void arrange_window(entry * argentry, GtkWidget * layout,uint16_t width,
+void arrange_window(entry * argentry, uint16_t width,
 		    void (*gtk_put_move)(GtkLayout *,GtkWidget *, int,int)) 
 {
 	entry * currententry = argentry;
@@ -265,7 +256,7 @@ void arrange_window(entry * argentry, GtkWidget * layout,uint16_t width,
 	uint16_t y = 0;
 	int16_t colspace = 0;
 	uint8_t entryprow;
-	uint8_t count = 0;
+
 
 	entryprow = width/ENTRYWIDTH;
 	if(__builtin_expect(entryprow < 2,0)) {
@@ -287,7 +278,7 @@ void arrange_window(entry * argentry, GtkWidget * layout,uint16_t width,
 		//		if(erowcount == entryprow-1)
 		//	(*gtk_put_move)(GTK_LAYOUT(layout),currententry->top,width-ENTRYWIDTH,y);
 		//else
-		(*gtk_put_move)(GTK_LAYOUT(layout),currententry->top,x,y);
+		(*gtk_put_move)(GTK_LAYOUT(mainlayout),currententry->top,x,y);
 		gtk_widget_show(currententry->top);
 		currententry =(entry *) currententry->next;
 
@@ -301,7 +292,6 @@ void arrange_window(entry * argentry, GtkWidget * layout,uint16_t width,
 		}
 	}
 
-
 }
 
 
@@ -311,9 +301,7 @@ void window_resize(GtkWindow *window, GdkEvent *event, gpointer data)
 	static uint16_t lastheight;
 	uint16_t width;
 	uint16_t height;
-	GtkWidget * layout;
 	entry * currententry;
-	GList * windowlist;
 
 	width = event->configure.width;
 	height = event->configure.height;
@@ -321,25 +309,24 @@ void window_resize(GtkWindow *window, GdkEvent *event, gpointer data)
 		return;
 	lastwidth = width;
 	lastheight = height;
-	windowlist = gtk_container_get_children(GTK_CONTAINER(window));
-	layout = (GtkWidget *) windowlist->data;
+
 	currententry = (entry *) data;
 
-	arrange_window(currententry,layout,width,&gtk_layout_move);
+	arrange_window(currententry,width,&gtk_layout_move);
 
-	gtk_container_resize_children(GTK_CONTAINER(layout));
-	GtkRequisition size = {width,height};
-	gtk_widget_size_request(layout,&size);
+	GtkRequisition size = {width,2*height};
+	gtk_widget_size_request(mainlayout,&size);
 
 }
 
 
-GtkWidget * get_entrygrid(entry * rootentry) {
+void init_entrygrid(entry * rootentry) {
 	
-	GtkWidget * layout;
+
 	GtkWidget * currentwidget;
 	entry * currententry;
-	layout = gtk_layout_new(NULL,NULL);
+
+	mainlayout = gtk_layout_new(NULL,NULL);
 	currententry = rootentry;
 
 	while(__builtin_expect(currententry->next !=NULL,1))
@@ -348,50 +335,64 @@ GtkWidget * get_entrygrid(entry * rootentry) {
 		currententry->top = currentwidget;
 		currententry =(entry *) currententry->next;
 	}
-	arrange_window(rootentry,layout,STARTWIDTH,&gtk_layout_put);
-
-	return layout;
+	arrange_window(rootentry,STARTWIDTH,&gtk_layout_put);
+	
 }
 
 void destroy(GtkWindow *window, GdkEvent *event, gpointer data) 
 {
-	entry * rootentry = (entry *) data;
+	//entry * rootentry = (entry *) data;
 //	freeEntryArray(rootentry);
 	gtk_widget_destroy(GTK_WIDGET(window));
 	gtk_main_quit();
 }
 
-void fetch_new_videos(GtkWindow * window) 
+void fetch_new_videos() 
 {
-	GtkWidget * layout;
-	GtkWidget * mainwindow = GTK_WIDGET(window);
-	entry * rootentry;
-	char * newsub;
-	int retur;
+	
+	
+	entry * rootentry = NULL;
+	char * newsub = NULL;
+	int retur = 0;
 
 	newsub =(char *) get_newsub(statusername);
 
 	if(!newsub)
 		exit(2);
+
 	rootentry = get_rootentry(newsub);
+
 	if(!rootentry)
 		exit(2);
 
 	retur = get_thumbs(rootentry);
 	
-       	layout = get_entrygrid(rootentry);
+       	init_entrygrid(rootentry);
+	
+	
+	g_signal_connect(mainwindow, "configure-event",G_CALLBACK(window_resize),rootentry);
 
-	g_signal_connect(window, "configure-event",G_CALLBACK(window_resize),rootentry);
-	gtk_container_add(GTK_CONTAINER(mainwindow), layout);
+
 
 
 	gtk_widget_add_events(mainwindow, GDK_CONFIGURE);
+	
+	GtkAdjustment * vadjust = gtk_adjustment_new(0,20,100,122,122,200);
+	GtkWidget * scrollwin = gtk_scrolled_window_new(NULL, NULL );
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),GTK_POLICY_NEVER,GTK_POLICY_ALWAYS);
+	gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(scrollwin),600);
 
+//	gtk_layout_set_vadjustment(GTK_LAYOUT(mainlayout),vadjust);
+	gtk_scrollable_set_vscroll_policy(GTK_SCROLLABLE(mainlayout),GTK_SCROLL_NATURAL);
 
-	gtk_widget_override_background_color(layout,GTK_STATE_FLAG_NORMAL,&BLACK);
-	gtk_widget_show_all(layout);
+	gtk_container_add(GTK_CONTAINER(scrollwin), mainlayout);
+	gtk_container_add(GTK_CONTAINER(mainwindow), scrollwin);
+//	gtk_layout_put(GTK_LAYOUT(mainlayout),vscroll,0,0);
+
+	gtk_widget_override_background_color(mainlayout,GTK_STATE_FLAG_NORMAL,&BLACK);
+	gtk_widget_show_all(mainlayout);
 	gtk_widget_show_all(mainwindow);
-	gtk_window_resize(window,STARTWIDTH,STARTHEIGHT);
+	gtk_window_resize(GTK_WINDOW(mainwindow),STARTWIDTH,STARTHEIGHT);
 	
 }
 
@@ -423,12 +424,13 @@ void insert_text_handler (GtkEntry    *entry,
 	static char prev;
 
 	for (i=0; i < length; i++) {
-		if(text[i] == '.' && *position > 0 && prev != '.')
+		if(text[i] == '.' && prev != '.' && *position > 0)
 		{
 			result[count++] = text[i];
 			prev = text[i];
 			continue;
 		}
+
 		if (isalnum(text[i]))
 		{
 			result[count++] = text[i];
@@ -447,6 +449,7 @@ void insert_text_handler (GtkEntry    *entry,
 		g_signal_handlers_unblock_by_func (G_OBJECT (editable),
 						   G_CALLBACK (insert_text_handler),
 						   data);
+
 	}
 	g_signal_stop_emission_by_name (G_OBJECT (editable), "insert_text");
 	
@@ -454,8 +457,6 @@ void insert_text_handler (GtkEntry    *entry,
 	
 	issensitive = (!(entrylen < 5) && !(prev == '.'));
 	gtk_widget_set_sensitive(button,issensitive);
-
-		
 
 }
 
@@ -468,7 +469,7 @@ void delete_text_handler(GtkEntry    *entry,
 	GtkEditable *editable = GTK_EDITABLE(entry);
 	int issensitive;
 	int entrylen;
-	char * text;
+	const char * text;
 
 	g_signal_handlers_block_by_func (G_OBJECT (editable),
 					 G_CALLBACK (delete_text_handler),
@@ -489,7 +490,7 @@ void delete_text_handler(GtkEntry    *entry,
 	gtk_widget_set_sensitive(button,issensitive);
 }
 
-char * show_username_dialog(GtkWindow * window)
+void show_username_dialog(GtkWindow * window)
 {
 	GtkWidget *dialog, *label, *content_area,*entry,*button;
 	entry = gtk_entry_new();
@@ -528,7 +529,7 @@ char * show_username_dialog(GtkWindow * window)
 	switch (result)
 		{
 		case GTK_RESPONSE_ACCEPT:
-			printf("hello this %s",gtk_entry_get_text(GTK_ENTRY(entry)));
+			printf("hello  %s",gtk_entry_get_text(GTK_ENTRY(entry)));
 			put_username(entry);
 			break;
 		default:

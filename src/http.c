@@ -4,13 +4,14 @@
 #include<stdlib.h>
 #include"http.h"
 #include"filehandler.h"
+#include"filedeleter.h"
 #define YOUTUBELEN strlen(YOUTUBE)
 #define CURLINITFAIL 2
 #define PRELEN strlen(PREFIX)
 #define JPGLEN strlen(JPG)
 #define FILEPATHLEN (strlen(VIDEOFILE)+SETTINGSPATHLEN)
 #define SETTINGSPATHLEN (strlen(settingsdir))
-const char * NEWSUB = "/newsubscriptionvideos?v=2";
+const char * NEWSUB = "/newsubscriptionvideos?v=2&max-results=50";
 const char * GDATA = "http://gdata.youtube.com/feeds/api/users/";
 const char * ERR = "Something went wrong while fetching files, make sure your internet connection is working\n";
 const char * XMLFILE = "/newsub.xml";
@@ -21,6 +22,7 @@ const char * YTIMGPRE = "http://i4.ytimg.com/vi/";
 const char * DEF = "/default.jpg";
 const char * VIDEOFILE = "tmpvideo.html";
 static char * settingsdir;
+static char * thumbdir;
 
 char * get_newsub(char * username);
 
@@ -28,12 +30,15 @@ char * get_newsub(char * username);
  *@return either the const videofile or NULL if error occur.
  *It is used to download the html file of a youtube video.
  */
-const char * get_youtubehtml(char * youtubeid)
+char * get_youtubehtml(char * youtubeid)
 {
 	if(!settingsdir)
 		settingsdir = get_settingsdir();
 	
-	char * url = malloc(strlen(youtubeid)+YOUTUBELEN+1);
+	char * url;
+	
+	url = malloc(strlen(youtubeid)+YOUTUBELEN+1);
+
 	sprintf(url,"%s%s",YOUTUBE,youtubeid);
 	printf("%s\n",url);
 
@@ -57,11 +62,13 @@ const char * get_youtubehtml(char * youtubeid)
 	retur = curl_easy_perform(curl);
 	if(retur != 0) {
 		fprintf(stderr,ERR);
-		filename = (const char * ) NULL;
+		filename = (char * ) NULL;
 	}
 	
 	fclose(file);
 	curl_easy_cleanup(curl);
+
+	
 	
 	free(url);
 	return (char *) filename;
@@ -70,10 +77,10 @@ const char * get_youtubehtml(char * youtubeid)
 
 
 
-void get_thumb_filename(entry * argentry)
+void set_thumb_filename(entry * argentry)
 {
-	if(!settingsdir)
-		settingsdir = get_settingsdir();	
+	if(!thumbdir)
+		thumbdir = get_thumbdir();	
 	const char * PREFIX = "/";
 	const char * JPG = ".jpg";
 	char * id = argentry->fields[ID];
@@ -98,11 +105,15 @@ int get_thumbs(entry * rootentry)
 	const size_t DEFLEN = strlen(DEF);
 	
 	CURL *curl;
-	CURLcode retur;
-	size_t idlen;
+	CURLcode retur = 0;
+	size_t idlen = 0;
 	entry * current = rootentry;
 	char * link = malloc(DEFLEN+YTIMGLEN+15*sizeof(char));
 	FILE * file;
+
+	if(!thumbdir)
+		thumbdir = get_thumbdir();	
+
 	printf("title %s",rootentry->fields[TITLE]);
 
 	curl = curl_easy_init();
@@ -111,7 +122,7 @@ int get_thumbs(entry * rootentry)
 	while(current->next != NULL)
 	{
 		idlen = strlen(current->fields[ID]);
-		get_thumb_filename(current);
+		set_thumb_filename(current);
 
 		if((file = fopen(current->fields[THUMBLOC],"r"))) 
 		{
@@ -133,6 +144,7 @@ int get_thumbs(entry * rootentry)
 	}
 	curl_easy_cleanup(curl);
 	free(link);
+	garbage_collect_cache(settingsdir,rootentry);
 	return 0;
 }
 
@@ -147,12 +159,14 @@ char * get_newsub(char * username)
 	if(!settingsdir)
 		settingsdir = get_settingsdir();	
 		
-	CURL *curl;
+	CURL * curl;
 	CURLcode retur;
 	FILE* file;
 	char * filepath =(char *) malloc((strlen(settingsdir)+strlen(XMLFILE)+sizeof(char)));
+
 	sprintf(filepath,"%s%s",settingsdir,XMLFILE);
 	printf("filepath %s\n",filepath);
+
 	char * fullurl = (char *) malloc(strlen(GDATA)+strlen(username)+strlen(NEWSUB)+sizeof(char));
 	sprintf(fullurl,"%s%s%s",GDATA,username,NEWSUB);
 

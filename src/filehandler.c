@@ -7,18 +7,24 @@
 #include<unistd.h>
 
 #define USERLEN (strlen(USERNAME))
-#define HOMEDIRLEN (strlen(homedir)+strlen(DIR_PATH))
+
 #define SETTINGLEN (strlen(SETTINGS))
 
 const char * SETTINGS = "/settings";
-const char * DIR_PATH = "/.cymplayer";
 const char * USERNAME = "Username=";
 static char * homedir;
+static char * thumbdir;
 static char * settingsdir;
+
 
 char * getusername();
 void writesetting(char * username);
 
+
+char * get_settingsdir()
+{
+	return settingsdir;
+}
 
 void init_filehandler()
 {
@@ -26,22 +32,27 @@ void init_filehandler()
 	uid_t userid = getuid();
 	struct passwd * userpasswd = getpwuid(userid);
 	homedir = userpasswd->pw_dir;
-	settingsdir = (char *) calloc(1,HOMEDIRLEN+sizeof(char));
-	sprintf(settingsdir,"%s%s",homedir,DIR_PATH);
 	if(!(homedir))
 	{
-		fprintf(stderr,"Could not aquire homedir directory");
+		fprintf(stderr,"Could not aquire home directory, quits\n");
 		exit(2);
 
 	}
 	
 }
 
-char * get_settingsdir()
+char * get_homedir()
 {
 	if(!settingsdir)
 		init_filehandler();
-	return settingsdir;
+	return homedir;
+}
+
+char * get_thumbdir()
+{
+
+	return thumbdir;
+
 }
 
 char * get_username() 
@@ -57,8 +68,8 @@ char * get_username()
 		init_filehandler();
 
 
-	fullpath = malloc(HOMEDIRLEN+SETTINGLEN+sizeof(char));
-	sprintf(fullpath,"%s%s%s",homedir,DIR_PATH,SETTINGS);
+	fullpath = calloc(1,strlen(settingsdir)+strlen(SETTINGS)+sizeof(char));
+	sprintf(fullpath,"%s%s",settingsdir,SETTINGS);
 
 	settings = fopen(fullpath,"r");
 	
@@ -72,11 +83,14 @@ char * get_username()
 	input = (char *) malloc((sizeof(char))*buffer);
 	inputptr = &input;
 
-	int i =0;
+	
 	ssize_t retsize = 0;
 	char * username;
 	retsize = getline(inputptr,buffptr,settings);
+
+	/*New Line Symbol*/
 	retsize--;
+
 	if(strncmp(*inputptr,USERNAME,USERLEN) == 0) {
 		username = (char *) calloc(1,retsize-USERLEN+sizeof(char));
 		strncpy(username,(*inputptr+USERLEN),retsize-USERLEN);
@@ -89,36 +103,53 @@ char * get_username()
 	return (char *) username;
 }
 
-void write_settings(char * username) 
+
+/*
+ *@arghomedir e.g. /home/ks6g10
+ *@argsuffix suffix of the directory such as /.cymplayer in /home/ks6g10/.cymplayer
+ */
+char * touch_directory(char * arghomedir,const char * argsuffix)
 {
-	FILE * settings;
+
+	char * fullpath = calloc(1,strlen(arghomedir)+strlen(argsuffix)+1);
 	DIR * settings_dir;
-	char * dirpath = malloc(HOMEDIRLEN+sizeof(char));
-	char * fullpath;
 	int ret;
+	sprintf(fullpath,"%s%s",arghomedir,argsuffix);
 
-	if(!(homedir))
-		init_filehandler();
-
-	sprintf(dirpath,"%s%s",homedir,DIR_PATH);
-	fprintf(stdout,"Opening %s\n",dirpath);
-	settings_dir = opendir(dirpath);
-//	settings = fopen(path,"r");
+	settings_dir = opendir(fullpath);
+	
 	if(settings_dir == NULL)
 	{
-		fprintf(stdout,"Directory %s does not exist\n",dirpath);
-		ret = mkdir(dirpath,S_IRWXU);
+		fprintf(stdout,"Directory %s does not exist\n",fullpath);
+		ret = mkdir(fullpath,S_IRWXU);
 		if(ret == -1) {
-			fprintf(stderr,"Could not create directory, quits\n");
+			fprintf(stderr,"Could not create directory %s, quits\n",fullpath);
 			exit(EXIT_FAILURE);	
 		}
-		fprintf(stdout,"Directory %s created\n",dirpath);
+		fprintf(stdout,"Directory %s created\n",fullpath);
 	}
 	closedir(settings_dir);
 
-	fullpath = malloc(HOMEDIRLEN+SETTINGLEN+sizeof(char));
-	sprintf(fullpath,"%s%s",dirpath,SETTINGS);
-	free(dirpath);
+	return fullpath;
+}
+
+void write_settings(char * username) 
+{
+	FILE * settings;
+	char * fullpath;
+	
+	const char * CYMPLAYERDIR = "/.cymplayer";
+	const char * THUMBDIR = "/.cymplayer/thumbs";
+	if(!(homedir))
+		init_filehandler();
+	
+	settingsdir = touch_directory(homedir,CYMPLAYERDIR);
+	thumbdir = touch_directory(homedir,THUMBDIR);
+//	settings = fopen(path,"r");
+	
+	fullpath = calloc(1,strlen(settingsdir)+strlen(SETTINGS)+sizeof(char));
+	sprintf(fullpath,"%s%s",settingsdir,SETTINGS);
+	
 
 	settings = fopen(fullpath,"w");
 	if(settings == NULL) {

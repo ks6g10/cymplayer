@@ -31,7 +31,7 @@
  */
 
 
-
+#include <gtk/gtk.h>
 #include <stdio.h>
 #include <libxml/xmlreader.h>
 #include <string.h>
@@ -52,7 +52,6 @@ int
 nodetype(char *parent) 
 {
 	const char * CHARY = (const char *) "y";
-	const char * CHARM = (const char *) "m";
 	if(strncmp(parent,CHARY,1)==0) 
 	{
 		if(strcmp(parent,"yt:uploaded") == 0) 
@@ -90,17 +89,14 @@ process_node(xmlTextReaderPtr reader,char *parent, entry *argEntry)
 	{ /* if the value is a child node */
 		short ret = nodetype(parent);
 		
-		if(__builtin_expect(ret == 0,0)) //if no match
+		if(__builtin_expect(ret == 0,0)) /*if no match*/
 			return;
-		//If there is more than one credit field, only take the first.
-//		if(argEntry->fields[ret] !=NULL) {
-//			return;
-//		}
+
 		const char *value;
 		char* ptr;
 		
 		value = (const char *) xmlTextReaderConstValue(reader);
-		ptr = (char *)  malloc(strlen(value)+sizeof(char) ); //alloc space for string
+		ptr = (char *)  malloc(strlen(value)+sizeof(char) ); /*alloc space for string*/
 		strcpy(ptr,value);
 		argEntry->fields[ret] = ptr;		
 		
@@ -117,6 +113,7 @@ process_node(xmlTextReaderPtr reader,char *parent, entry *argEntry)
 			strcpy(argEntry->fields[AUTHOR],author);
 			free(author);
 		}
+
 		
 		if(__builtin_expect(strcmp(name,"yt:duration") == 0,0)) 
 		{     /* gives you the duration */
@@ -141,6 +138,8 @@ format_duration(char * argdur)
 
 	int n=0;
 	int index;
+	int hours;
+	int minute;
 	char * dur;
 	char * tmp;
 
@@ -151,7 +150,7 @@ format_duration(char * argdur)
 	{
 		dur = (char *) malloc(9*sizeof(char));
 		tmp = dur;
-		int hours = n/3600;
+		hours = n/3600;
 		*dur++ = (char) '0' + hours/10;
 		*dur++ = (char) '0' + hours%10;
 		*dur++ = ':';
@@ -163,7 +162,7 @@ format_duration(char * argdur)
 		tmp = dur;
 	}
 	
-	int minute = n/60;
+	minute = n/60;
 	*dur++ = (char) '0' + minute/10; //get most segnificant minute
 	*dur++ = (char) '0' + minute%10; // get least segnificant minute
 	*dur++ = ':';
@@ -228,27 +227,32 @@ stream_file(const char *filename)
 		return (entry *) NULL;
 	}
 
-	entry *root = (entry *) malloc(sizeof( entry));
-	entry *current = root;
+	entry *root;
+	entry *current;
 	int ret;
 	char *cname,*parent;
 	unsigned char inside = 0;
+	root = (entry *) malloc(sizeof( entry));
+	current = root;
 	ret = xmlTextReaderRead(reader);	
 
 	while (__builtin_expect(ret == 1,1)) 
 	{ /* while there still is something to read */
-		cname = (char *)  xmlTextReaderConstName(reader); /* gets the name of the current node */
+		/* gets the name of the current node */
+		cname = (char *)  xmlTextReaderConstName(reader); 
 		
 		if(strcmp(cname,"media:group") == 0 && !(inside ^=1)) 
 		{ /* if the node is of media:group, toggle inside */
-			current->next = (entry *) calloc(1,sizeof(entry)); //set new pointer to next entry
+			/*set new pointer to next entry*/
+			current->next = (entry *) calloc(1,sizeof(entry)); 
 			if(__builtin_expect(current->next == NULL,0))
 			{
 				fprintf(stderr, "Malloc failed in reader1.c:streamFile:~244\n");
 				return (entry *) NULL;
 			}
-
-			current =(entry *) current->next; //change entry to new one.
+			
+			/*change entry to new one.*/
+			current =(entry *) current->next; 
 
 		}
 		else if(inside == 1) 
@@ -288,9 +292,6 @@ entry * get_rootentry(char * filename)
 		fprintf(stderr, "malloc failed, exit\n");
 		exit(1);
 	}
-//	rootentry 
-//	printEntryArray(rootentry);
-//	freeEntryArray( rootentry);
 
 	/*
 	 * Cleanup function for the XML library.
@@ -300,60 +301,8 @@ entry * get_rootentry(char * filename)
 	 * this is to debug memory for regression tests
 	 */
 	xmlMemoryDump();
-//	printf("root title %s",rootentry->fields[TITLE]);
 	return rootentry;
-
 }
-
-/* int main(int argc, char **argv) { */
-/* 	if(argc < 2) { */
-/* //		printf("asd"); */
-/* 		return run(); */
-/* 	} */
-/* 	if (argc != 2) */
-/* 		return(1); */
-/* 	entry * rootentry = (entry *) NULL; */
-/* 	/\* */
-/* 	 * this initialize the library and check potential ABI mismatches */
-/* 	 * between the version it was compiled for and the actual shared */
-/* 	 * library used. */
-/* 	 *\/ */
-/* 	printf("%s",argv[1]); */
-/* 	LIBXML_TEST_VERSION */
-/* 		rootentry = streamFile(argv[1]); */
-
-/* 	if(rootentry == NULL) */
-/* 	{ */
-/* 		fprintf(stderr, "malloc failed, exit\n"); */
-/* 		exit(1); */
-/* 	} */
-
-/* 	printEntryArray(rootentry); */
-/* 	freeEntryArray( rootentry); */
-
-/* 	/\* */
-/* 	 * Cleanup function for the XML library. */
-/* 	 *\/ */
-/* 	xmlCleanupParser(); */
-/* 	/\* */
-/* 	 * this is to debug memory for regression tests */
-/* 	 *\/ */
-/* 	xmlMemoryDump(); */
-	
-
-
-/* 	return(0); */
-/* }  */
-
-int run() {
-
-	entry * rootentry = (entry *) NULL;
-	//rootentry = getRootentry();
-	print_entryarray(rootentry);
-	free_entryarray( rootentry);
-
-	return 0;
-	}
 
 #else
 int main(void) {

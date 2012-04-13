@@ -59,7 +59,7 @@ void str_replace(char *orig, char *rep, char *with) {
     len_with = strlen(with);
     start=orig;
 
-    for (count = 0; tmp = strstr(ins, rep); ++count) {
+    for (count = 0; (tmp = strstr(ins, rep)); ++count) {
         ins = tmp + len_rep;
     }
 
@@ -94,9 +94,9 @@ int get_resolution(char * argString)
 	uint8_t ret = 0;
 	if(argString == NULL)
 		return 0;
-	size_t numlen = strlen(argString)-ITAGLEN-COMMALEN;
+	size_t numlen = strlen(argString)-itaglen-COMMALEN;
 	itagnum = malloc((numlen+1)*sizeof(char));
-	strncpy(itagnum,(argString+ITAGLEN),numlen);
+	strncpy(itagnum,(argString+itaglen),numlen);
 	*(itagnum+numlen) = 0;
 	ret = atoi(itagnum);
 	free(itagnum);
@@ -180,16 +180,16 @@ streamstruct *  get_urlstruct(const char * filename)
 
 			ret = get_resolution(strstr(tmp,ITAG));
 			tmp = cut_string(tmp,"%26quality");
-//			printf("%s  %d\n\n",tmp,ret);
 			put_url_stream(streamptr,ret,tmp);
 			//free(tmp);
 			src += URLLEN;
 		}
-//		printf("count %d \n",i);
+
 		free(line);
 		fclose(file);
 		return streamptr;	       
 	}
+	return streamptr;
 }
 
 void put_url_stream(streamstruct * argStruct, int resolution, char * url)

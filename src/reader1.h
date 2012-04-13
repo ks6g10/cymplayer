@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-#include <gtk/gtk.h>
+
 
 #define MAXFIELDS 7
 
@@ -31,7 +31,7 @@ enum arrayindex {
 
 typedef struct entrystruct {
 	char *fields[MAXFIELDS];
-	GtkWidget * top;
+	void * top;
 	struct entrystruct *next;
 } entry;
 
